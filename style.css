@@ -6,8 +6,20 @@ html, body {
     width: 100%;
 }
 
+/* Карта */
 #map { 
     height: 100vh; /* повна висота вікна */ 
     width: 100%; 
 }
 
+/* Светлая тема */
+.light-theme {
+    background-color: #ffffff; /* белый фон */
+    color: #000000; /* черный текст (если понадобится) */
+}
+
+/* Тёмная тема */
+.dark-theme {
+    background-color: #1e1e1e; /* темно-серый фон */
+    color: #ffffff; /* белый текст */
+}
