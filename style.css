@@ -14,12 +14,12 @@ html, body {
 
 /* Светлая тема карты */
 .light-theme {
-    background-color: #cccccc;
+    background-color: #e6e6e6;
 }
 
 /* Тёмная тема карты */
 .dark-theme {
-    background-color: #333333;
+    background-color: #1a1a1a;
 }
 
 /* Кнопка переключения темы */
@@ -33,4 +33,5 @@ html, body {
     background-color: #f0f0f0;
     z-index: 1000;
 }
+
 
