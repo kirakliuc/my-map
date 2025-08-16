@@ -14,23 +14,27 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-  // Створюємо мапу
+  // Створюємо мапу з CRS Simple для піксельної карти
   let map = L.map('map', {
-    center: [0, 0], // стартові координати
-    zoom: 2
+    center: [5000, 7500], // центр карти
+    zoom: 2,
+    crs: L.CRS.Simple      // важливо для піксельної карти
   });
 
-  // Базовий шар (можна просто залишити прозорим)
-  let fictionCountries = L.imageOverlay('images/fiction_countries.png', [[-90, -180], [90, 180]]).addTo(map);
+  // Визначаємо розміри карти в пікселях
+  let mapBounds = [[0, 0], [10000, 15000]];
+
+  // Базовий шар
+  let fictionCountries = L.imageOverlay('images/fiction_countries.png', mapBounds).addTo(map);
 
   // Інші шари
-  let realWorld = L.imageOverlay('images/real_world.png', [[-90, -180], [90, 180]]);
-  let countryNames = L.imageOverlay('images/country_names.png', [[-90, -180], [90, 180]]);
-  let cityNames = L.imageOverlay('images/city_names.png', [[-90, -180], [90, 180]]);
-  let infrastructure = L.imageOverlay('images/infrastructure.png', [[-90, -180], [90, 180]]);
-  let divisions = L.imageOverlay('images/divisions.png', [[-90, -180], [90, 180]]);
-  let layer13 = L.imageOverlay('images/layer13.png', [[-90, -180], [90, 180]]);
-  let foto = L.imageOverlay('images/foto.png', [[-90, -180], [90, 180]]);
+  let realWorld = L.imageOverlay('images/real_world.png', mapBounds);
+  let countryNames = L.imageOverlay('images/country_names.png', mapBounds);
+  let cityNames = L.imageOverlay('images/city_names.png', mapBounds);
+  let infrastructure = L.imageOverlay('images/infrastructure.png', mapBounds);
+  let divisions = L.imageOverlay('images/divisions.png', mapBounds);
+  let layer13 = L.imageOverlay('images/layer13.png', mapBounds);
+  let foto = L.imageOverlay('images/foto.png', mapBounds);
 
   // Контрол для вмикання/вимикання шарів
   let overlays = {
@@ -43,15 +47,10 @@
     "фото": foto
   };
   L.control.layers(null, overlays).addTo(map);
+
+  // Обмеження перегляду карти рамками
+  map.setMaxBounds(mapBounds);
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
