@@ -7,7 +7,7 @@ let map = L.map('map', {
 });
 
 // Базовий шар
-let realWorld = L.imageOverlay('photo_2025-08-15_11-36-18.jpg', [[-90, -180], [90, 180]]).addTo(map);
+let realWorld = L.imageOverlay('images/real_world.png', [[-90, -180], [90, 180]]).addTo(map);
 
 // Інші шари
 let fictionCountries = L.imageOverlay('images/fiction_countries.png', [[-90, -180], [90, 180]]);
@@ -29,5 +29,6 @@ let overlays = {
     "Фото": Фото
 };
 L.control.layers(null, overlays).addTo(map);
+
 
 
