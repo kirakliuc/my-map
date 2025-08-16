@@ -20,7 +20,7 @@ let map = L.map('map', {
 
 // Контрол для вмикання/вимикання шарів
 let overlays = {
-    "Країни": fictionCountries,
+    "Реальний світ": realWorld,
     "Назви країн": countryNames,
     "Назви міст": cityNames,
     "Інфраструктура": infrastructure,
@@ -29,6 +29,7 @@ let overlays = {
     "Фото": Фото
 };
 L.control.layers(null, overlays).addTo(map);
+
 
 
 
