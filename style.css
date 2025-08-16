@@ -8,18 +8,18 @@ html, body {
 
 /* Карта */
 #map { 
-    height: 100vh; /* повна висота вікна */ 
+    height: 100vh; 
     width: 100%; 
 }
 
 /* Светлая тема */
 .light-theme {
     background-color: #ffffff; /* белый фон */
-    color: #000000; /* черный текст (если понадобится) */
+    color: #000000;
 }
 
 /* Тёмная тема */
 .dark-theme {
     background-color: #1e1e1e; /* темно-серый фон */
-    color: #ffffff; /* белый текст */
+    color: #ffffff;
 }
