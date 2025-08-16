@@ -30,6 +30,7 @@
   let infrastructure = L.imageOverlay('infrastructure.png', [[-90, -180], [90, 180]]);
   let divisions = L.imageOverlay('divisions.png', [[-90, -180], [90, 180]]);
   let layer13 = L.imageOverlay('layer13.png', [[-90, -180], [90, 180]]);
+  let foto = L.imageOverlay('foto.png', [[-90, -180], [90, 180]]);
 
   // Контрол для вмикання/вимикання шарів
   let overlays = {
@@ -38,13 +39,15 @@
     "Назви міст": cityNames,
     "Інфраструктура": infrastructure,
     "Дивізії": divisions,
-    "Шар 13": layer13
+    "Шар 13": layer13,
+    "фото": foto
   };
   L.control.layers(null, overlays).addTo(map);
 </script>
 
 </body>
 </html>
+
 
 
 
