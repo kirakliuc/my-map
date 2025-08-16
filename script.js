@@ -7,10 +7,10 @@ let map = L.map('map', {
 });
 
 // Базовий шар
-let realWorld = L.imageOverlay('images/real_world.png', [[-90, -180], [90, 180]]).addTo(map);
+  let fictionCountries = L.imageOverlay('images/fiction_countries.png', [[-90, -180], [90, 180]]).addTo(map);
 
-// Інші шари
-let fictionCountries = L.imageOverlay('images/fiction_countries.png', [[-90, -180], [90, 180]]);
+  // Інші шари
+  let realWorld = L.imageOverlay('images/real_world.png', [[-90, -180], [90, 180]]);
   let countryNames = L.imageOverlay('images/country_names.png', [[-90, -180], [90, 180]]);
   let cityNames = L.imageOverlay('images/city_names.png', [[-90, -180], [90, 180]]);
   let infrastructure = L.imageOverlay('images/infrastructure.png', [[-90, -180], [90, 180]]);
@@ -29,6 +29,7 @@ let overlays = {
     "Фото": Фото
 };
 L.control.layers(null, overlays).addTo(map);
+
 
 
 
