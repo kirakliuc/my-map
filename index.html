@@ -4,24 +4,11 @@
   <meta charset="UTF-8">
   <title>шизофрения</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css" /> <!-- Подключаем внешний CSS -->
-  <style>
-    /* Кнопка переключения темы */
-    .theme-toggle {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      padding: 6px 10px;
-      cursor: pointer;
-      border: 1px solid #ccc;
-      background-color: #f0f0f0;
-      z-index: 1000; /* чтобы кнопка была поверх карты */
-    }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
-<body class="light-theme">
+<body>
 
-<div id="map"></div>
+<div id="map" class="light-theme"></div>
 
 <button class="theme-toggle">Змінити тему</button>
 
@@ -56,18 +43,19 @@
   L.control.layers(null, overlays).addTo(map);
   map.setMaxBounds(mapBounds);
 
-  // Переключение темы
+  // Переключение темы у контейнера карты
   const themeButton = document.querySelector('.theme-toggle');
+  const mapDiv = document.getElementById('map');
+
   themeButton.addEventListener('click', () => {
-    if(document.body.classList.contains('light-theme')) {
-      document.body.classList.replace('light-theme', 'dark-theme');
+    if(mapDiv.classList.contains('light-theme')) {
+      mapDiv.classList.replace('light-theme', 'dark-theme');
     } else {
-      document.body.classList.replace('dark-theme', 'light-theme');
+      mapDiv.classList.replace('dark-theme', 'light-theme');
     }
   });
 </script>
 
-<!-- Ссылка для скачивания файла -->
 <a href="images/photo_2025-08-13_21-06-28.jpg" download>Скачать дедушку (.pdn)</a>
 
 </body>
