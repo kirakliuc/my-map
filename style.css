@@ -6,8 +6,8 @@ html, body {
     width: 100%;
 }
 
-#map {
-    width: 150vw; /* 150% ширини вікна */
-    height: 100vh;
+#map { 
+    height: 100vh; /* повна висота вікна */ 
+    width: 100%; 
 }
 
