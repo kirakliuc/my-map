@@ -48,10 +48,10 @@
   const mapDiv = document.getElementById('map');
 
   themeButton.addEventListener('click', () => {
-    if(mapDiv.classList.contains('light-theme')) {
-      mapDiv.classList.replace('light-theme', 'dark-theme');
-    } else {
+    if(mapDiv.classList.contains('dark-theme')) {
       mapDiv.classList.replace('dark-theme', 'light-theme');
+    } else {
+      mapDiv.classList.replace('light-theme', 'dark-theme');
     }
   });
 </script>
@@ -60,3 +60,4 @@
 
 </body>
 </html>
+
