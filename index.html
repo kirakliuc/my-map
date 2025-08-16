@@ -5,32 +5,59 @@
   <title>шизофрения</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    #map { height: 100vh; width: 100%; }
+    /* Общий стиль */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    #map { 
+      height: 100vh; 
+      width: 100%; 
+    }
+
+    /* Тема сайта */
+    body.light {
+      background-color: #ffffff;
+    }
+    body.dark {
+      background-color: #1e1e1e;
+    }
+
+    /* Кнопка переключения темы */
+    .theme-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 6px 10px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background-color: #f0f0f0;
+      z-index: 1000; /* чтобы кнопка была поверх карты */
+    }
   </style>
 </head>
-<body>
+<body class="light">
 
 <div id="map"></div>
+
+<button class="theme-toggle">Змінити тему</button>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
   // Створюємо мапу з CRS Simple для піксельної карти
   let map = L.map('map', {
     crs: L.CRS.Simple,
-    minZoom: -4,  // позволяет сильно отдалять карту
-    maxZoom: 5    // позволяет приближать
+    minZoom: -4,
+    maxZoom: 5
   });
 
-  // Визначаємо розміри карти в пікселях
   let mapBounds = [[0, 0], [10000, 15000]];
-
-  // Встановлюємо початковий вид так, щоб вся карта була видна
   map.fitBounds(mapBounds);
 
-  // Базовий шар
   let fictionCountries = L.imageOverlay('images/fiction_countries.png', mapBounds).addTo(map);
-
-  // Інші шари
   let realWorld = L.imageOverlay('images/real_world.png', mapBounds, {opacity: 0.5});
   let countryNames = L.imageOverlay('images/country_names.png', mapBounds);
   let cityNames = L.imageOverlay('images/city_names.png', mapBounds);
@@ -39,7 +66,6 @@
   let layer13 = L.imageOverlay('images/layer13.png', mapBounds);
   let foto = L.imageOverlay('images/foto.png', mapBounds);
 
-  // Контрол для вмикання/вимикання шарів
   let overlays = {
     "Реальний світ": realWorld,
     "Назви країн": countryNames,
@@ -50,9 +76,19 @@
     "фото": foto
   };
   L.control.layers(null, overlays).addTo(map);
-
-  // Обмеження перегляду карти рамками
   map.setMaxBounds(mapBounds);
+
+  // Переключение темы
+  const themeButton = document.querySelector('.theme-toggle');
+  themeButton.addEventListener('click', () => {
+    if(document.body.classList.contains('light')) {
+      document.body.classList.remove('light');
+      document.body.classList.add('dark');
+    } else {
+      document.body.classList.remove('dark');
+      document.body.classList.add('light');
+    }
+  });
 </script>
 
 <!-- Простая ссылка для скачивания файла -->
@@ -60,4 +96,3 @@
 
 </body>
 </html>
-
