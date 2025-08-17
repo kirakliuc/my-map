@@ -1,31 +1,103 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>шизофрения</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { 
+      height: 100vh; 
+      width: 100%; 
+    }
+
+    .control-panel {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 1000;
+    }
+
+    .control-btn {
+      background-color: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.2s;
+    }
+
+    .control-btn:hover {
+      background-color: rgba(200, 200, 200, 0.9);
+    }
+
+    .layers-panel {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      z-index: 1000;
+    }
+
+    .layer-btn {
+      padding: 4px 8px;
+      cursor: pointer;
+      border: 1px solid #999;
+      border-radius: 4px;
+      background: #f0f0f0;
+      transition: 0.2s;
+    }
+
+    .layer-btn:hover {
+      background: #ddd;
+    }
+
+    .layer-btn.active {
+      background: #bbb;
+      font-weight: bold;
+    }
+
+    .dark-theme { background-color: #1e1e1e; color: #fff; }
+    .light-theme { background-color: #fff; color: #000; }
+  </style>
+</head>
+<body>
+
+<div id="map" class="dark-theme"></div>
+
+<div class="control-panel">
+  <button class="control-btn" id="theme-btn" title="Сменить тему">Тема</button>
+  <a href="images/photo_2025-08-13_21-06-28.jpg" download class="control-btn" title="Скачать .pdn">Скачать</a>
+</div>
+
+<div class="layers-panel" id="layers-panel"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-  // Создание карты
   let map = L.map('map', { crs: L.CRS.Simple, minZoom: -4, maxZoom: 5 });
   let mapBounds = [[0, 0], [10000, 15000]];
   map.fitBounds(mapBounds);
 
-  // Базовый слой
   let fictionCountries = L.imageOverlay('images/fiction_countries.png', mapBounds).addTo(map);
 
-  // Остальные слои
-  let realWorld = L.imageOverlay('images/real_world.png', mapBounds, {opacity: 0.5});
-  let infrastructure = L.imageOverlay('images/infrastructure.png', mapBounds);
-  let divisions = L.imageOverlay('images/divisions.png', mapBounds);
-  let cityNames = L.imageOverlay('images/city_names.png', mapBounds);
-  let countryNames = L.imageOverlay('images/country_names.png', mapBounds);
-  let layer13 = L.imageOverlay('images/layer13.png', mapBounds);
   let foto = L.imageOverlay('images/foto.png', mapBounds);
-
-  // Слои в порядке приоритета сверху вниз
-  let overlaysOrdered = [
-    foto,
-    layer13,
-    countryNames,
-    cityNames,
-    divisions,
-    infrastructure,
-    realWorld
-  ];
+  let layer13 = L.imageOverlay('images/layer13.png', mapBounds);
+  let countryNames = L.imageOverlay('images/country_names.png', mapBounds);
+  let cityNames = L.imageOverlay('images/city_names.png', mapBounds);
+  let divisions = L.imageOverlay('images/divisions.png', mapBounds);
+  let infrastructure = L.imageOverlay('images/infrastructure.png', mapBounds);
+  let realWorld = L.imageOverlay('images/real_world.png', mapBounds, {opacity: 0.5});
 
   let overlays = {
     "фото": foto,
@@ -39,7 +111,6 @@
 
   map.setMaxBounds(mapBounds);
 
-  // Добавляем кнопки слоёв внизу справа
   const layersPanel = document.getElementById('layers-panel');
   Object.keys(overlays).forEach(name => {
     let btn = document.createElement('button');
@@ -47,25 +118,19 @@
     btn.textContent = name;
 
     btn.addEventListener('click', () => {
-      const layer = overlays[name];
+      let layer = overlays[name];
       if(map.hasLayer(layer)){
         map.removeLayer(layer);
         btn.classList.remove('active');
       } else {
         map.addLayer(layer);
         btn.classList.add('active');
-
-        // Ставим слои в правильный порядок
-        overlaysOrdered.forEach(l => {
-          if(map.hasLayer(l)) l.bringToFront();
-        });
       }
     });
 
     layersPanel.appendChild(btn);
   });
 
-  // Переключение темы
   const themeButton = document.getElementById('theme-btn');
   const mapDiv = document.getElementById('map');
   themeButton.addEventListener('click', () => {
@@ -76,3 +141,6 @@
     }
   });
 </script>
+
+</body>
+</html>
