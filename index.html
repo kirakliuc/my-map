@@ -2,6 +2,7 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>шизофрения</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
@@ -20,7 +21,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      z-index: 9999; /* всегда поверх карты */
+      z-index: 2000; /* поднял выше всего */
     }
 
     .control-btn {
@@ -54,11 +55,13 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.95);
       padding: 6px;
       border-radius: 6px;
       border: 1px solid #ccc;
-      z-index: 9999; /* тоже поверх карты */
+      z-index: 2000;
+      max-height: 50vh;     /* чтобы не вылазило за экран */
+      overflow-y: auto;     /* прокрутка если кнопок много */
     }
 
     .layer-btn {
@@ -142,23 +145,26 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
   // Создание карты
-  let map = L.map('map', { crs: L.CRS.Simple, minZoom: -4, maxZoom: 2 });
+  let map = L.map('map', { 
+    crs: L.CRS.Simple, 
+    minZoom: -4, 
+    maxZoom: 2,
+    attributionControl: false // отключаем © OpenStreetMap внизу справа
+  });
   let mapBounds = [[0, 0], [10000, 15000]];
   map.fitBounds(mapBounds);
 
-  // Базовый слой
-  let fictionCountries = L.imageOverlay('images/fiction_countries.png', mapBounds).addTo(map);
-
-  // Остальные слои
+  // Слои
   let foto = L.imageOverlay('images/foto.png', mapBounds);
   let layer13 = L.imageOverlay('images/layer13.png', mapBounds);
-  let cityNames = L.imageOverlay('images/city_names.png', mapBounds, {opacity: 0.8});
   let countryNames = L.imageOverlay('images/country_names.png', mapBounds, {opacity: 0.8});
+  let cityNames = L.imageOverlay('images/city_names.png', mapBounds, {opacity: 0.8});
   let divisions = L.imageOverlay('images/divisions.png', mapBounds);
   let infrastructure = L.imageOverlay('images/infrastructure.png', mapBounds);
   let realWorld = L.imageOverlay('images/real_world.png', mapBounds, {opacity: 0.3});
-  
-  // Порядок наложения слоёв
+  let fictionCountries = L.imageOverlay('images/fiction_countries.png', mapBounds).addTo(map);
+
+  // Порядок слоёв
   let overlayOrder = [
     fictionCountries,
     realWorld,
@@ -174,8 +180,8 @@
   let overlayMap = {
     "Фото": foto,
     "Шар 13": layer13,
-    "Назви міст": cityNames,
     "Назви країн": countryNames,
+    "Назви міст": cityNames,
     "Дивізії": divisions,
     "Інфраструктура": infrastructure,
     "Реальний світ": realWorld,
@@ -197,7 +203,6 @@
       } else {
         map.addLayer(layer);
         btn.classList.add('active');
-        // Переставляем слои
         overlayOrder.forEach(l => {
           if(map.hasLayer(l)) l.bringToFront();
         });
@@ -211,8 +216,11 @@
   const themeButton = document.getElementById('theme-btn');
   const mapDiv = document.getElementById('map');
   themeButton.addEventListener('click', () => {
-    if(mapDiv.classList.contains('light-theme')) mapDiv.classList.replace('light-theme','dark-theme');
-    else mapDiv.classList.replace('dark-theme','light-theme');
+    if(mapDiv.classList.contains('light-theme')) {
+      mapDiv.classList.replace('light-theme','dark-theme');
+    } else {
+      mapDiv.classList.replace('dark-theme','light-theme');
+    }
   });
 
   // Ограничение карты
