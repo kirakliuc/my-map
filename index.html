@@ -7,13 +7,11 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* Карта */
     #map { 
       height: 100vh; 
       width: 100%; 
     }
 
-    /* Верхняя панель кнопок (тема и скачивание) */
     .control-panel {
       position: fixed;
       top: 10px;
@@ -47,7 +45,6 @@
       height: 20px;
     }
 
-    /* Панель слоёв внизу справа */
     .layers-panel {
       position: fixed;
       bottom: 10px;
@@ -80,13 +77,11 @@
       font-weight: bold;
     }
 
-    /* Тёмная тема */
     .dark-theme {
       background-color: #1e1e1e;
       color: #ffffff;
     }
 
-    /* Светлая тема */
     .light-theme {
       background-color: #ffffff;
       color: #000000;
@@ -97,7 +92,6 @@
 
 <div id="map" class="dark-theme"></div>
 
-<!-- Верхняя панель кнопок -->
 <div class="control-panel">
   <button class="control-btn" id="theme-btn" title="Сменить тему">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -122,57 +116,37 @@
   </a>
 </div>
 
-<!-- Панель слоёв -->
 <div class="layers-panel" id="layers-panel"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-  // Создание карты
+  // Определяем зум для мобильных
+  let minZoom = window.innerWidth < 768 ? -6 : -4;
+  let maxZoom = 2;
+
   let map = L.map('map', { 
     crs: L.CRS.Simple, 
-    minZoom: -4, 
-    maxZoom: 2,
+    minZoom: minZoom, 
+    maxZoom: maxZoom,
     attributionControl: false
   });
 
-  // Адаптивные границы
-  let mapBounds;
-  let defaultFitBounds;
+  let mapBounds = [[-1000, -1000], [11000, 16000]];
+  let defaultBounds = [[0,0],[10000,15000]];
+  map.fitBounds(defaultBounds);
+  map.setMaxBounds(mapBounds, { maxBoundsViscosity: 0.5 });
 
-  if(window.innerWidth < 768) { // мобильные
-    mapBounds = [[-1000, -1000], [15000, 20000]]; // расширенные границы для мобильных
-    defaultFitBounds = [[0, 0], [15000, 15000]];
-  } else { // ПК
-    mapBounds = [[-1000, -1000], [11000, 16000]]; // старые границы
-    defaultFitBounds = [[0, 0], [10000, 15000]];
-  }
+  let foto = L.imageOverlay('images/foto.png', defaultBounds);
+  let layer13 = L.imageOverlay('images/layer13.png', defaultBounds);
+  let countryNames = L.imageOverlay('images/country_names.png', defaultBounds, {opacity: 0.8});
+  let cityNames = L.imageOverlay('images/city_names.png', defaultBounds, {opacity: 0.8});
+  let divisions = L.imageOverlay('images/divisions.png', defaultBounds);
+  let infrastructure = L.imageOverlay('images/infrastructure.png', defaultBounds);
+  let realWorld = L.imageOverlay('images/real_world.png', defaultBounds, {opacity: 0.3});
+  let fictionCountries = L.imageOverlay('images/fiction_countries.png', defaultBounds).addTo(map);
 
-  map.fitBounds(defaultFitBounds); // видимая область по умолчанию
-  map.setMaxBounds(mapBounds); // ограничение прокрутки
+  let overlayOrder = [fictionCountries, realWorld, infrastructure, divisions, countryNames, cityNames, layer13, foto];
 
-  // Слои
-  let foto = L.imageOverlay('images/foto.png', [[0,0],[10000,15000]]);
-  let layer13 = L.imageOverlay('images/layer13.png', [[0,0],[10000,15000]]);
-  let countryNames = L.imageOverlay('images/country_names.png', [[0,0],[10000,15000]], {opacity: 0.8});
-  let cityNames = L.imageOverlay('images/city_names.png', [[0,0],[10000,15000]], {opacity: 0.8});
-  let divisions = L.imageOverlay('images/divisions.png', [[0,0],[10000,15000]]);
-  let infrastructure = L.imageOverlay('images/infrastructure.png', [[0,0],[10000,15000]]);
-  let realWorld = L.imageOverlay('images/real_world.png', [[0,0],[10000,15000]], {opacity: 0.3});
-  let fictionCountries = L.imageOverlay('images/fiction_countries.png', [[0,0],[10000,15000]]).addTo(map);
-
-  // Порядок слоёв
-  let overlayOrder = [
-    fictionCountries,
-    realWorld,
-    infrastructure,
-    divisions,
-    countryNames,
-    cityNames,
-    layer13,
-    foto
-  ];
-
-  // Объект с названиями
   let overlayMap = {
     "Фото": foto,
     "Шар 13": layer13,
@@ -183,9 +157,7 @@
     "Реальний світ": realWorld,
   };
 
-  // Панель слоёв
   const layersPanel = document.getElementById('layers-panel');
-
   Object.keys(overlayMap).forEach(name => {
     let btn = document.createElement('button');
     btn.className = 'layer-btn';
@@ -208,7 +180,6 @@
     layersPanel.appendChild(btn);
   });
 
-  // Кнопка темы
   const themeButton = document.getElementById('theme-btn');
   const mapDiv = document.getElementById('map');
   themeButton.addEventListener('click', () => {
@@ -217,6 +188,12 @@
     } else {
       mapDiv.classList.replace('dark-theme','light-theme');
     }
+  });
+
+  // Динамически меняем minZoom при изменении размера экрана
+  window.addEventListener('resize', () => {
+    let newMinZoom = window.innerWidth < 768 ? -6 : -4;
+    map.setMinZoom(newMinZoom);
   });
 </script>
 
