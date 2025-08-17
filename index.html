@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>шизофрения</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css" />
   <style>
     /* Карта */
     #map { 
@@ -12,7 +11,7 @@
       width: 100%; 
     }
 
-    /* Верхняя панель кнопок (тема и скачивание) */
+    /* Верхняя панель кнопок */
     .control-panel {
       position: fixed;
       top: 10px;
@@ -46,7 +45,7 @@
       height: 20px;
     }
 
-    /* Панель слоёв внизу справа */
+    /* Панель слоёв */
     .layers-panel {
       position: fixed;
       bottom: 10px;
@@ -79,26 +78,16 @@
       font-weight: bold;
     }
 
-    /* Тёмная тема для карты */
-    .dark-theme {
-      background-color: #1e1e1e;
-      color: #ffffff;
-    }
-
-    /* Светлая тема для карты */
-    .light-theme {
-      background-color: #ffffff;
-      color: #000000;
-    }
+    /* Тёмная/светлая тема */
+    .dark-theme { background-color: #1e1e1e; color: #fff; }
+    .light-theme { background-color: #fff; color: #000; }
   </style>
 </head>
 <body>
 
 <div id="map" class="dark-theme"></div>
 
-<!-- Верхняя панель кнопок -->
 <div class="control-panel">
-  <!-- Кнопка смены темы -->
   <button class="control-btn" id="theme-btn" title="Сменить тему">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="5"/>
@@ -113,7 +102,6 @@
     </svg>
   </button>
 
-  <!-- Кнопка скачивания -->
   <a href="images/photo_2025-08-13_21-06-28.jpg" download class="control-btn" title="Скачать .pdn">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -123,56 +111,40 @@
   </a>
 </div>
 
-<!-- Панель слоёв -->
 <div class="layers-panel" id="layers-panel"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
   // Создание карты
-  let map = L.map('map', { crs: L.CRS.Simple, minZoom: -4, maxZoom: 5 });
-  let mapBounds = [[0, 0], [10000, 15000]];
+  const map = L.map('map', { crs: L.CRS.Simple, minZoom: -4, maxZoom: 5 });
+  const mapBounds = [[0, 0], [10000, 15000]];
   map.fitBounds(mapBounds);
 
   // Базовый слой
-  let fictionCountries = L.imageOverlay('images/fiction_countries.png', mapBounds).addTo(map);
+  const fictionCountries = L.imageOverlay('images/fiction_countries.png', mapBounds).addTo(map);
 
-  // Остальные слои
-  let realWorld = L.imageOverlay('images/real_world.png', mapBounds, {opacity: 0.5});
-  let countryNames = L.imageOverlay('images/country_names.png', mapBounds);
-  let cityNames = L.imageOverlay('images/city_names.png', mapBounds);
-  let infrastructure = L.imageOverlay('images/infrastructure.png', mapBounds);
-  let divisions = L.imageOverlay('images/divisions.png', mapBounds);
-  let layer13 = L.imageOverlay('images/layer13.png', mapBounds);
-  let foto = L.imageOverlay('images/foto.png', mapBounds);
+  // Слои в фиксированном порядке
+  const layers = [
+    {name: "фото", layer: L.imageOverlay('images/foto.png', mapBounds).addTo(map), visible: true},
+    {name: "Шар 13", layer: L.imageOverlay('images/layer13.png', mapBounds).addTo(map), visible: true},
+    {name: "Назви країн", layer: L.imageOverlay('images/country_names.png', mapBounds).addTo(map), visible: true},
+    {name: "Назви міст", layer: L.imageOverlay('images/city_names.png', mapBounds).addTo(map), visible: true},
+    {name: "Дивізії", layer: L.imageOverlay('images/divisions.png', mapBounds).addTo(map), visible: true},
+    {name: "Інфраструктура", layer: L.imageOverlay('images/infrastructure.png', mapBounds).addTo(map), visible: true},
+    {name: "Реальний світ", layer: L.imageOverlay('images/real_world.png', mapBounds, {opacity: 0.5}).addTo(map), visible: true}
+  ];
 
-  let overlays = {
-    "Реальний світ": realWorld,
-    "Назви країн": countryNames,
-    "Назви міст": cityNames,
-    "Інфраструктура": infrastructure,
-    "Дивізії": divisions,
-    "Шар 13": layer13,
-    "фото": foto
-  };
-
-  map.setMaxBounds(mapBounds);
-
-  // Добавляем кнопки слоёв внизу справа
+  // Панель слоёв
   const layersPanel = document.getElementById('layers-panel');
-  Object.keys(overlays).forEach(name => {
-    let btn = document.createElement('button');
-    btn.className = 'layer-btn';
-    btn.textContent = name;
+  layers.forEach(obj => {
+    const btn = document.createElement('button');
+    btn.className = 'layer-btn active';
+    btn.textContent = obj.name;
 
     btn.addEventListener('click', () => {
-      let layer = overlays[name];
-      if(map.hasLayer(layer)){
-        map.removeLayer(layer);
-        btn.classList.remove('active');
-      } else {
-        map.addLayer(layer);
-        btn.classList.add('active');
-      }
+      obj.visible = !obj.visible;
+      obj.layer.setOpacity(obj.visible ? 1 : 0);
+      btn.classList.toggle('active', obj.visible);
     });
 
     layersPanel.appendChild(btn);
@@ -182,11 +154,8 @@
   const themeButton = document.getElementById('theme-btn');
   const mapDiv = document.getElementById('map');
   themeButton.addEventListener('click', () => {
-    if(mapDiv.classList.contains('light-theme')) {
-      mapDiv.classList.replace('light-theme', 'dark-theme');
-    } else {
-      mapDiv.classList.replace('dark-theme', 'light-theme');
-    }
+    mapDiv.classList.toggle('light-theme');
+    mapDiv.classList.toggle('dark-theme');
   });
 </script>
 
