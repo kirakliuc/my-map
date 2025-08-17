@@ -6,56 +6,43 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* Панель кнопок */
-    .control-panel {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      z-index: 1000;
-    }
-
-    .control-btn {
-      background-color: rgba(255, 255, 255, 0.9);
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: 0.2s;
-    }
-
-    .control-btn:hover {
-      background-color: rgba(200, 200, 200, 0.9);
-    }
-
-    .control-btn svg {
-      display: block;
-      stroke: #333;
-      width: 20px;
-      height: 20px;
-    }
-
-    /* Тёмная тема для карты */
-    .dark-theme {
-      background-color: #1e1e1e;
-      color: #ffffff;
-    }
-
-    /* Светлая тема для карты */
-    .light-theme {
-      background-color: #ffffff;
-      color: #000000;
-    }
-
     /* Карта */
     #map { 
       height: 100vh; 
       width: 100%; 
+    }
+
+    /* Панель слоёв внизу справа */
+    .layers-panel {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      z-index: 1000;
+    }
+
+    .layer-btn {
+      padding: 4px 8px;
+      cursor: pointer;
+      border: 1px solid #999;
+      border-radius: 4px;
+      background: #f0f0f0;
+      transition: 0.2s;
+    }
+
+    .layer-btn:hover {
+      background: #ddd;
+    }
+
+    .layer-btn.active {
+      background: #bbb;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -63,48 +50,9 @@
 
 <div id="map" class="dark-theme"></div>
 
-<!-- Панель кнопок с SVG -->
-<div class="control-panel">
-  <!-- Кнопка слоев -->
-  <button class="control-btn" id="layers-btn" title="Слои">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <polygon points="12 2 22 7 12 12 2 7 12 2"/>
-      <polyline points="2 17 12 22 22 17"/>
-      <polyline points="2 12 12 17 22 12"/>
-    </svg>
-  </button>
-
-  <!-- Кнопка смены темы -->
-  <button class="control-btn" id="theme-btn" title="Сменить тему">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="5"/>
-      <line x1="12" y1="1" x2="12" y2="3"/>
-      <line x1="12" y1="21" x2="12" y2="23"/>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-      <line x1="1" y1="12" x2="3" y2="12"/>
-      <line x1="21" y1="12" x2="23" y2="12"/>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-    </svg>
-  </button>
-
-  <!-- Кнопка зума (инфо для пользователя) -->
-  <button class="control-btn" id="zoom-info-btn" title="Используйте колесо мыши для зума">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="11" cy="11" r="8"/>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-    </svg>
-  </button>
-
-  <!-- Кнопка скачивания -->
-  <a href="images/photo_2025-08-13_21-06-28.jpg" download class="control-btn" title="Скачать .pdn">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-      <polyline points="7 10 12 15 17 10"/>
-      <line x1="12" y1="15" x2="12" y2="3"/>
-    </svg>
-  </a>
+<!-- Панель слоёв -->
+<div class="layers-panel" id="layers-panel">
+  <!-- Кнопки слоёв будут добавляться через JS -->
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -126,6 +74,7 @@
   let layer13 = L.imageOverlay('images/layer13.png', mapBounds);
   let foto = L.imageOverlay('images/foto.png', mapBounds);
 
+  // Список слоёв
   let overlays = {
     "Реальний світ": realWorld,
     "Назви країн": countryNames,
@@ -135,18 +84,29 @@
     "Шар 13": layer13,
     "фото": foto
   };
-  L.control.layers(null, overlays).addTo(map);
+
   map.setMaxBounds(mapBounds);
 
-  // Переключение темы
-  const themeButton = document.getElementById('theme-btn');
-  const mapDiv = document.getElementById('map');
-  themeButton.addEventListener('click', () => {
-    if(mapDiv.classList.contains('light-theme')) {
-      mapDiv.classList.replace('light-theme', 'dark-theme');
-    } else {
-      mapDiv.classList.replace('dark-theme', 'light-theme');
-    }
+  // Добавляем кнопки слоёв внизу справа
+  const layersPanel = document.getElementById('layers-panel');
+
+  Object.keys(overlays).forEach(name => {
+    let btn = document.createElement('button');
+    btn.className = 'layer-btn';
+    btn.textContent = name;
+
+    btn.addEventListener('click', () => {
+      let layer = overlays[name];
+      if(map.hasLayer(layer)){
+        map.removeLayer(layer);
+        btn.classList.remove('active');
+      } else {
+        map.addLayer(layer);
+        btn.classList.add('active');
+      }
+    });
+
+    layersPanel.appendChild(btn);
   });
 </script>
 
