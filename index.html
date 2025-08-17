@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>шизофрения</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css" />
   <style>
     /* Карта */
     #map { 
@@ -21,7 +20,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      z-index: 2000; /* поднял выше всего */
+      z-index: 2000;
     }
 
     .control-btn {
@@ -47,7 +46,7 @@
       height: 20px;
     }
 
-    /* Панель слоёв внизу справа */
+    /* Панель слоёв */
     .layers-panel {
       position: fixed;
       bottom: 10px;
@@ -60,8 +59,10 @@
       border-radius: 6px;
       border: 1px solid #ccc;
       z-index: 2000;
-      max-height: 50vh;     /* чтобы не вылазило за экран */
-      overflow-y: auto;     /* прокрутка если кнопок много */
+      max-height: 50vh;
+      width: 150px;       /* фиксированная ширина */
+      overflow-y: auto;
+      box-shadow: 0 0 8px rgba(0,0,0,0.3);
     }
 
     .layer-btn {
@@ -70,6 +71,7 @@
       border: 1px solid #999;
       border-radius: 4px;
       background: #f0f0f0;
+      text-align: left;
       transition: 0.2s;
     }
 
@@ -94,7 +96,7 @@
       color: #000000;
     }
 
-    /* 📱 Адаптация для телефонов */
+    /* Адаптация для телефонов */
     @media (max-width: 768px) {
       .control-btn {
         padding: 12px;
@@ -104,8 +106,8 @@
         height: 28px;
       }
       .layer-btn {
-        padding: 10px 14px;
-        font-size: 16px;
+        padding: 8px 12px;
+        font-size: 14px;
       }
     }
   </style>
@@ -114,7 +116,6 @@
 
 <div id="map" class="dark-theme"></div>
 
-<!-- Верхняя панель кнопок -->
 <div class="control-panel">
   <button class="control-btn" id="theme-btn" title="Сменить тему">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -139,44 +140,25 @@
   </a>
 </div>
 
-<!-- Панель слоёв -->
 <div class="layers-panel" id="layers-panel"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-  // Создание карты
-  let map = L.map('map', { 
-    crs: L.CRS.Simple, 
-    minZoom: -4, 
-    maxZoom: 2,
-    attributionControl: false // отключаем © OpenStreetMap внизу справа
-  });
-  let mapBounds = [[0, 0], [10000, 15000]];
+  let map = L.map('map', { crs: L.CRS.Simple, minZoom: -4, maxZoom: 2, attributionControl: false });
+  let mapBounds = [[0,0],[10000,15000]];
   map.fitBounds(mapBounds);
 
-  // Слои
   let foto = L.imageOverlay('images/foto.png', mapBounds);
   let layer13 = L.imageOverlay('images/layer13.png', mapBounds);
   let countryNames = L.imageOverlay('images/country_names.png', mapBounds, {opacity: 0.8});
   let cityNames = L.imageOverlay('images/city_names.png', mapBounds, {opacity: 0.8});
   let divisions = L.imageOverlay('images/divisions.png', mapBounds);
   let infrastructure = L.imageOverlay('images/infrastructure.png', mapBounds);
-  let realWorld = L.imageOverlay('images/real_world.png', mapBounds, {opacity: 0.3});
+  let realWorld = L.imageOverlay('images/real_world.png', mapBounds, {opacity:0.3});
   let fictionCountries = L.imageOverlay('images/fiction_countries.png', mapBounds).addTo(map);
 
-  // Порядок слоёв
-  let overlayOrder = [
-    fictionCountries,
-    realWorld,
-    infrastructure,
-    divisions,
-    countryNames,
-    cityNames,
-    layer13,
-    foto
-  ];
+  let overlayOrder = [fictionCountries, realWorld, infrastructure, divisions, countryNames, cityNames, layer13, foto];
 
-  // Объект с названиями
   let overlayMap = {
     "Фото": foto,
     "Шар 13": layer13,
@@ -184,46 +166,39 @@
     "Назви міст": cityNames,
     "Дивізії": divisions,
     "Інфраструктура": infrastructure,
-    "Реальний світ": realWorld,
+    "Реальний світ": realWorld
   };
 
-  // Панель слоёв
   const layersPanel = document.getElementById('layers-panel');
 
   Object.keys(overlayMap).forEach(name => {
     let btn = document.createElement('button');
     btn.className = 'layer-btn';
     btn.textContent = name;
-
     btn.addEventListener('click', () => {
       let layer = overlayMap[name];
-      if(map.hasLayer(layer)) {
+      if(map.hasLayer(layer)){
         map.removeLayer(layer);
         btn.classList.remove('active');
       } else {
         map.addLayer(layer);
         btn.classList.add('active');
-        overlayOrder.forEach(l => {
-          if(map.hasLayer(l)) l.bringToFront();
-        });
+        overlayOrder.forEach(l => { if(map.hasLayer(l)) l.bringToFront(); });
       }
     });
-
     layersPanel.appendChild(btn);
   });
 
-  // Кнопка темы
   const themeButton = document.getElementById('theme-btn');
   const mapDiv = document.getElementById('map');
   themeButton.addEventListener('click', () => {
-    if(mapDiv.classList.contains('light-theme')) {
+    if(mapDiv.classList.contains('light-theme')){
       mapDiv.classList.replace('light-theme','dark-theme');
     } else {
       mapDiv.classList.replace('dark-theme','light-theme');
     }
   });
 
-  // Ограничение карты
   map.setMaxBounds(mapBounds);
 </script>
 
