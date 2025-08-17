@@ -1,38 +1,40 @@
 <script>
   // Создание карты
   let map = L.map('map', { crs: L.CRS.Simple, minZoom: -4, maxZoom: 5 });
-
   let mapBounds = [[0, 0], [10000, 15000]];
   map.fitBounds(mapBounds);
-
-  // Загружаем сохранённую позицию, если есть
-  const savedCenter = localStorage.getItem('mapCenter');
-  const savedZoom = localStorage.getItem('mapZoom');
-  if(savedCenter && savedZoom) {
-    const center = JSON.parse(savedCenter);
-    map.setView(center, parseFloat(savedZoom));
-  }
 
   // Базовый слой
   let fictionCountries = L.imageOverlay('images/fiction_countries.png', mapBounds).addTo(map);
 
   // Остальные слои
   let realWorld = L.imageOverlay('images/real_world.png', mapBounds, {opacity: 0.5});
-  let countryNames = L.imageOverlay('images/country_names.png', mapBounds);
-  let cityNames = L.imageOverlay('images/city_names.png', mapBounds);
   let infrastructure = L.imageOverlay('images/infrastructure.png', mapBounds);
   let divisions = L.imageOverlay('images/divisions.png', mapBounds);
+  let cityNames = L.imageOverlay('images/city_names.png', mapBounds);
+  let countryNames = L.imageOverlay('images/country_names.png', mapBounds);
   let layer13 = L.imageOverlay('images/layer13.png', mapBounds);
   let foto = L.imageOverlay('images/foto.png', mapBounds);
 
+  // Слои в порядке приоритета сверху вниз
+  let overlaysOrdered = [
+    foto,
+    layer13,
+    countryNames,
+    cityNames,
+    divisions,
+    infrastructure,
+    realWorld
+  ];
+
   let overlays = {
-    "Реальний світ": realWorld,
+    "фото": foto,
+    "Шар 13": layer13,
     "Назви країн": countryNames,
     "Назви міст": cityNames,
-    "Інфраструктура": infrastructure,
     "Дивізії": divisions,
-    "Шар 13": layer13,
-    "фото": foto
+    "Інфраструктура": infrastructure,
+    "Реальний світ": realWorld
   };
 
   map.setMaxBounds(mapBounds);
@@ -45,13 +47,18 @@
     btn.textContent = name;
 
     btn.addEventListener('click', () => {
-      let layer = overlays[name];
+      const layer = overlays[name];
       if(map.hasLayer(layer)){
         map.removeLayer(layer);
         btn.classList.remove('active');
       } else {
         map.addLayer(layer);
         btn.classList.add('active');
+
+        // Ставим слои в правильный порядок
+        overlaysOrdered.forEach(l => {
+          if(map.hasLayer(l)) l.bringToFront();
+        });
       }
     });
 
@@ -67,13 +74,5 @@
     } else {
       mapDiv.classList.replace('dark-theme', 'light-theme');
     }
-  });
-
-  // Сохраняем позицию карты при движении
-  map.on('moveend', () => {
-    const center = map.getCenter();
-    const zoom = map.getZoom();
-    localStorage.setItem('mapCenter', JSON.stringify([center.lat, center.lng]));
-    localStorage.setItem('mapZoom', zoom);
   });
 </script>
