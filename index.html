@@ -6,22 +6,6 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
   <style>
-    /* Карта */
-    #map { 
-      height: 100vh; 
-      width: 100%; 
-    }
-
-    /* Тема карты */
-    .dark-theme {
-      background-color: #1e1e1e;
-      color: #ffffff;
-    }
-    .light-theme {
-      background-color: #ffffff;
-      color: #000000;
-    }
-
     /* Панель кнопок */
     .control-panel {
       position: fixed;
@@ -31,53 +15,47 @@
       flex-direction: column;
       gap: 8px;
       z-index: 1000;
-      transition: 0.3s;
     }
 
     .control-btn {
+      background-color: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
       border-radius: 6px;
       padding: 6px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: 0.3s;
-      border: 1px solid;
+      transition: 0.2s;
+    }
+
+    .control-btn:hover {
+      background-color: rgba(200, 200, 200, 0.9);
     }
 
     .control-btn svg {
       display: block;
+      stroke: #333;
       width: 20px;
       height: 20px;
-      transition: 0.3s;
     }
 
-    /* Светлая тема кнопок */
-    .light-theme .control-panel {
-      background-color: rgba(255, 255, 255, 0.9);
-    }
-    .light-theme .control-btn {
-      background-color: rgba(255, 255, 255, 0.9);
-      border-color: #ccc;
-    }
-    .light-theme .control-btn svg {
-      stroke: #333;
+    /* Тёмная тема для карты */
+    .dark-theme {
+      background-color: #1e1e1e;
+      color: #ffffff;
     }
 
-    /* Тёмная тема кнопок */
-    .dark-theme .control-panel {
-      background-color: rgba(50, 50, 50, 0.9);
-    }
-    .dark-theme .control-btn {
-      background-color: rgba(50, 50, 50, 0.9);
-      border-color: #999;
-    }
-    .dark-theme .control-btn svg {
-      stroke: #fff;
+    /* Светлая тема для карты */
+    .light-theme {
+      background-color: #ffffff;
+      color: #000000;
     }
 
-    .control-btn:hover {
-      filter: brightness(1.2);
+    /* Карта */
+    #map { 
+      height: 100vh; 
+      width: 100%; 
     }
   </style>
 </head>
@@ -85,11 +63,11 @@
 
 <div id="map" class="dark-theme"></div>
 
-<!-- Панель кнопок -->
+<!-- Панель кнопок с SVG -->
 <div class="control-panel">
   <!-- Кнопка слоев -->
   <button class="control-btn" id="layers-btn" title="Слои">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <polygon points="12 2 22 7 12 12 2 7 12 2"/>
       <polyline points="2 17 12 22 22 17"/>
       <polyline points="2 12 12 17 22 12"/>
@@ -98,7 +76,7 @@
 
   <!-- Кнопка смены темы -->
   <button class="control-btn" id="theme-btn" title="Сменить тему">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="5"/>
       <line x1="12" y1="1" x2="12" y2="3"/>
       <line x1="12" y1="21" x2="12" y2="23"/>
@@ -111,9 +89,9 @@
     </svg>
   </button>
 
-  <!-- Кнопка зума (инфо) -->
+  <!-- Кнопка зума (инфо для пользователя) -->
   <button class="control-btn" id="zoom-info-btn" title="Используйте колесо мыши для зума">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="11" cy="11" r="8"/>
       <line x1="21" y1="21" x2="16.65" y2="16.65"/>
     </svg>
@@ -121,7 +99,7 @@
 
   <!-- Кнопка скачивания -->
   <a href="images/photo_2025-08-13_21-06-28.jpg" download class="control-btn" title="Скачать .pdn">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
       <polyline points="7 10 12 15 17 10"/>
       <line x1="12" y1="15" x2="12" y2="3"/>
@@ -136,8 +114,10 @@
   let mapBounds = [[0, 0], [10000, 15000]];
   map.fitBounds(mapBounds);
 
-  // Слои
+  // Базовый слой
   let fictionCountries = L.imageOverlay('images/fiction_countries.png', mapBounds).addTo(map);
+
+  // Остальные слои
   let realWorld = L.imageOverlay('images/real_world.png', mapBounds, {opacity: 0.5});
   let countryNames = L.imageOverlay('images/country_names.png', mapBounds);
   let cityNames = L.imageOverlay('images/city_names.png', mapBounds);
@@ -158,10 +138,9 @@
   L.control.layers(null, overlays).addTo(map);
   map.setMaxBounds(mapBounds);
 
-  // Переключение темы (карта + панель)
+  // Переключение темы
   const themeButton = document.getElementById('theme-btn');
   const mapDiv = document.getElementById('map');
-
   themeButton.addEventListener('click', () => {
     if(mapDiv.classList.contains('light-theme')) {
       mapDiv.classList.replace('light-theme', 'dark-theme');
