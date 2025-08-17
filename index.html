@@ -135,9 +135,20 @@
     attributionControl: false
   });
 
-  // Расширенные границы карты для комфортного отдаления
-  let mapBounds = [[-1000, -1000], [11000, 16000]]; // расширяем на 1000px с каждой стороны
-  map.fitBounds([[0,0],[10000,15000]]); // видимая область по умолчанию
+  // Адаптивные границы
+  let mapBounds;
+  let defaultFitBounds;
+
+  if(window.innerWidth < 768) { // мобильные
+    mapBounds = [[-1000, -1000], [15000, 20000]]; // расширенные границы для мобильных
+    defaultFitBounds = [[0, 0], [15000, 15000]];
+  } else { // ПК
+    mapBounds = [[-1000, -1000], [11000, 16000]]; // старые границы
+    defaultFitBounds = [[0, 0], [10000, 15000]];
+  }
+
+  map.fitBounds(defaultFitBounds); // видимая область по умолчанию
+  map.setMaxBounds(mapBounds); // ограничение прокрутки
 
   // Слои
   let foto = L.imageOverlay('images/foto.png', [[0,0],[10000,15000]]);
@@ -207,9 +218,6 @@
       mapDiv.classList.replace('dark-theme','light-theme');
     }
   });
-
-  // Ограничение карты с запасом для комфортного отдаления
-  map.setMaxBounds(mapBounds);
 </script>
 
 </body>
