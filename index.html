@@ -20,7 +20,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      z-index: 1000;
+      z-index: 9999; /* всегда поверх карты */
     }
 
     .control-btn {
@@ -58,7 +58,7 @@
       padding: 6px;
       border-radius: 6px;
       border: 1px solid #ccc;
-      z-index: 1000;
+      z-index: 9999; /* тоже поверх карты */
     }
 
     .layer-btn {
@@ -79,13 +79,13 @@
       font-weight: bold;
     }
 
-    /* Тёмная тема для карты */
+    /* Тёмная тема */
     .dark-theme {
       background-color: #1e1e1e;
       color: #ffffff;
     }
 
-    /* Светлая тема для карты */
+    /* Светлая тема */
     .light-theme {
       background-color: #ffffff;
       color: #000000;
@@ -113,7 +113,6 @@
 
 <!-- Верхняя панель кнопок -->
 <div class="control-panel">
-  <!-- Кнопка смены темы -->
   <button class="control-btn" id="theme-btn" title="Сменить тему">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="5"/>
@@ -128,7 +127,6 @@
     </svg>
   </button>
 
-  <!-- Кнопка скачивания -->
   <a href="images/photo_2025-08-13_21-06-28.jpg" download class="control-btn" title="Скачать .pdn">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -172,7 +170,7 @@
     foto
   ];
 
-  // Объект с названиями для панели слоёв
+  // Объект с названиями
   let overlayMap = {
     "Фото": foto,
     "Шар 13": layer13,
@@ -199,7 +197,7 @@
       } else {
         map.addLayer(layer);
         btn.classList.add('active');
-        // Переставляем слои в правильный порядок
+        // Переставляем слои
         overlayOrder.forEach(l => {
           if(map.hasLayer(l)) l.bringToFront();
         });
@@ -217,7 +215,7 @@
     else mapDiv.classList.replace('dark-theme','light-theme');
   });
 
-  // Ограничиваем карту
+  // Ограничение карты
   map.setMaxBounds(mapBounds);
 </script>
 
