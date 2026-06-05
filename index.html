@@ -8,11 +8,58 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
   <style>
-    #map { 
-      height: 100vh; 
-      width: 100%; 
+    #map { height: 100vh; width: 100%; }
+
+    /* TOP BAR */
+    .top-bar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      gap: 8px;
+      z-index: 4000;
     }
 
+    .dropdown {
+      position: relative;
+    }
+
+    .drop-btn {
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ccc;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .menu {
+      position: absolute;
+      top: 110%;
+      left: 0;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      display: none;
+      min-width: 160px;
+    }
+
+    .menu button {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      background: white;
+      cursor: pointer;
+    }
+
+    .menu button:hover {
+      background: #eee;
+    }
+
+    .dropdown.open .menu {
+      display: block;
+    }
+
+    /* RIGHT PANEL */
     .control-panel {
       position: fixed;
       top: 10px;
@@ -24,47 +71,26 @@
     }
 
     .control-btn {
-      background-color: rgba(255, 255, 255, 0.9);
+      background: rgba(255,255,255,0.9);
       border: 1px solid #ccc;
-      border-radius: 6px;
       padding: 6px;
+      border-radius: 6px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .control-btn svg {
-      width: 20px;
-      height: 20px;
-      stroke: #333;
     }
 
     .layers-panel {
       position: fixed;
       bottom: 10px;
       right: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
       background: rgba(255,255,255,0.95);
       padding: 6px;
       border-radius: 6px;
-      border: 1px solid #ccc;
       z-index: 3000;
     }
 
     .layer-btn {
-      padding: 6px 10px;
-      border: 1px solid #999;
-      border-radius: 4px;
-      cursor: pointer;
-      background: #f0f0f0;
-    }
-
-    .layer-btn.active {
-      background: #bbb;
-      font-weight: bold;
+      display: block;
+      margin: 4px 0;
     }
 
     .dark-theme { background:#1e1e1e; }
@@ -76,168 +102,155 @@
 
 <div id="map" class="dark-theme"></div>
 
-<!-- КНОПКИ -->
-<div class="control-panel">
+<!-- TOP CONTROLS -->
+<div class="top-bar">
 
-  <!-- тема -->
-  <button class="control-btn" id="theme-btn">
-    🌙
-  </button>
+  <!-- MAP SELECT -->
+  <div class="dropdown" id="mapSelect">
+    <button class="drop-btn" id="mapBtn">world</button>
+    <div class="menu">
+      <button data-map="world">world</button>
+      <button data-map="kiraine">kiraine</button>
+      <button data-map="america">america</button>
+      <button data-map="altworld">altworld</button>
+    </div>
+  </div>
 
-  <!-- скачать -->
-  <a class="control-btn" download href="images/photo_2025-08-13_21-06-28.jpg">
-    ⬇
-  </a>
+  <!-- DATE SELECT -->
+  <div class="dropdown" id="dateSelect">
+    <button class="drop-btn" id="dateBtn">2026-06-04</button>
+    <div class="menu">
+      <button data-date="2026-06-04">2026-06-04</button>
+    </div>
+  </div>
 
 </div>
 
-<!-- слои -->
-<div class="layers-panel" id="layers-panel"></div>
+<!-- SIDE -->
+<div class="control-panel">
+  <button class="control-btn" id="themeBtn">theme</button>
+</div>
+
+<div class="layers-panel" id="layers"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-  // =========================
-  // 1. ДАТЫ (СИСТЕМА)
-  // =========================
-  const availableDates = ["2026-06-04"];
-  const currentDate = availableDates[availableDates.length - 1]; // всегда последняя
+/* =========================
+   STATE
+========================= */
 
-  // =========================
-  // 2. КАРТА
-  // =========================
-  const minZoom = window.innerWidth < 768 ? -6 : -4;
+let currentMap = "world";
+let currentDate = "2026-06-04";
 
-  const map = L.map('map', {
-    crs: L.CRS.Simple,
-    minZoom,
-    maxZoom: 2,
-    attributionControl: false
-  });
+/* =========================
+   MAP
+========================= */
 
-  const baseBounds = [[0,0],[10000,15000]];
-  const safeBounds = [[-1000,-1000],[11000,16000]];
+let map = L.map('map', {
+  crs: L.CRS.Simple,
+  minZoom: -6,
+  maxZoom: 2,
+  attributionControl: false
+});
 
-  map.fitBounds(baseBounds);
-  map.setMaxBounds(safeBounds);
+let bounds = [[0,0],[10000,15000]];
+map.fitBounds(bounds);
+map.setMaxBounds([[-1000,-1000],[11000,16000]]);
 
-  // =========================
-  // 3. СЛОИ (shared + date)
-  // =========================
+/* =========================
+   LAYERS FACTORY
+========================= */
 
-  const fictionCountries = L.imageOverlay(
-    `images/world/${currentDate}/fiction_countries.png`,
-    baseBounds
+function loadLayers() {
+
+  if (window.layersGroup) {
+    window.layersGroup.forEach(l => map.removeLayer(l));
+  }
+
+  const fiction = L.imageOverlay(
+    `images/${currentMap}/${currentDate}/fiction_countries.png`,
+    bounds
   ).addTo(map);
 
-  const realWorld = L.imageOverlay(
+  const real = L.imageOverlay(
     `images/shared/real_world/real_world.png`,
-    baseBounds,
-    {opacity: 0.3}
+    bounds,
+    {opacity:0.3}
   );
 
-  const infrastructure = L.imageOverlay(
-    `images/world/${currentDate}/infrastructure.png`,
-    baseBounds
+  const infra = L.imageOverlay(
+    `images/${currentMap}/${currentDate}/infrastructure.png`,
+    bounds
   );
 
-  const cityNames = L.imageOverlay(
-    `images/world/${currentDate}/city_names.png`,
-    baseBounds,
-    {opacity: 0.8}
+  const cities = L.imageOverlay(
+    `images/${currentMap}/${currentDate}/city_names.png`,
+    bounds,
+    {opacity:0.8}
   );
 
-  const countryNames = L.imageOverlay(
-    `images/world/${currentDate}/country_names.png`,
-    baseBounds,
-    {opacity: 0.8}
+  const countries = L.imageOverlay(
+    `images/${currentMap}/${currentDate}/country_names.png`,
+    bounds,
+    {opacity:0.8}
   );
 
-  const divisions = L.imageOverlay(
-    `images/shared/divisions/divisions.png`,
-    baseBounds
-  );
+  window.layersGroup = [fiction, real, infra, cities, countries];
 
-  const foto = L.imageOverlay(
-    `images/shared/foto/foto.png`,
-    baseBounds
-  );
+}
 
-  const layer13 = L.imageOverlay(
-    `images/shared/layer13/layer13.png`,
-    baseBounds
-  );
+/* =========================
+   INIT
+========================= */
 
-  const overlayOrder = [
-    fictionCountries,
-    realWorld,
-    infrastructure,
-    divisions,
-    countryNames,
-    cityNames,
-    layer13,
-    foto
-  ];
+loadLayers();
 
-  const overlayMap = {
-    "Фото": foto,
-    "Layer 13": layer13,
-    "Названия стран": countryNames,
-    "Названия городов": cityNames,
-    "Дивизии": divisions,
-    "Инфраструктура": infrastructure,
-    "Реальный мир": realWorld
+/* =========================
+   MAP SELECT
+========================= */
+
+const mapBtn = document.getElementById("mapBtn");
+const mapSelect = document.getElementById("mapSelect");
+
+mapBtn.onclick = () => mapSelect.classList.toggle("open");
+
+mapSelect.querySelectorAll("button[data-map]").forEach(btn => {
+  btn.onclick = () => {
+    currentMap = btn.dataset.map;
+    mapBtn.textContent = currentMap;
+    mapSelect.classList.remove("open");
+    loadLayers();
   };
+});
 
-  // =========================
-  // 4. UI СЛОЁВ
-  // =========================
-  const panel = document.getElementById("layers-panel");
+/* =========================
+   DATE SELECT
+========================= */
 
-  Object.keys(overlayMap).forEach(name => {
-    const btn = document.createElement("button");
-    btn.className = "layer-btn";
-    btn.textContent = name;
+const dateBtn = document.getElementById("dateBtn");
+const dateSelect = document.getElementById("dateSelect");
 
-    btn.onclick = () => {
-      const layer = overlayMap[name];
+dateBtn.onclick = () => dateSelect.classList.toggle("open");
 
-      if (map.hasLayer(layer)) {
-        map.removeLayer(layer);
-        btn.classList.remove("active");
-      } else {
-        map.addLayer(layer);
-        btn.classList.add("active");
-
-        overlayOrder.forEach(l => {
-          if (map.hasLayer(l)) l.bringToFront();
-        });
-      }
-    };
-
-    panel.appendChild(btn);
-  });
-
-  // =========================
-  // 5. ТЕМА
-  // =========================
-  const themeBtn = document.getElementById("theme-btn");
-  const mapDiv = document.getElementById("map");
-
-  themeBtn.onclick = () => {
-    if (mapDiv.classList.contains("dark-theme")) {
-      mapDiv.classList.replace("dark-theme", "light-theme");
-    } else {
-      mapDiv.classList.replace("light-theme", "dark-theme");
-    }
+dateSelect.querySelectorAll("button[data-date]").forEach(btn => {
+  btn.onclick = () => {
+    currentDate = btn.dataset.date;
+    dateBtn.textContent = currentDate;
+    dateSelect.classList.remove("open");
+    loadLayers();
   };
+});
 
-  // =========================
-  // 6. RESIZE ZOOM FIX
-  // =========================
-  window.addEventListener("resize", () => {
-    map.setMinZoom(window.innerWidth < 768 ? -6 : -4);
-  });
+/* =========================
+   CLOSE DROPDOWNS
+========================= */
+
+window.addEventListener("click", (e) => {
+  if (!e.target.closest(".dropdown")) {
+    document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
+  }
+});
 
 </script>
 
