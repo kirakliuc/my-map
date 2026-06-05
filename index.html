@@ -8,9 +8,9 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 
   <style>
-    #map {
-      height: 100vh;
-      width: 100%;
+    #map { 
+      height: 100vh; 
+      width: 100%; 
     }
 
     .control-panel {
@@ -20,25 +20,24 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      z-index: 2000;
+      z-index: 3000;
     }
 
-    .top-left-panel {
-      position: fixed;
-      top: 10px;
-      left: 10px;
+    .control-btn {
+      background-color: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 6px;
+      cursor: pointer;
       display: flex;
-      flex-direction: column;
-      gap: 6px;
-      z-index: 2000;
-      background: rgba(255,255,255,0.9);
-      padding: 6px;
-      border-radius: 6px;
+      align-items: center;
+      justify-content: center;
     }
 
-    select {
-      padding: 6px;
-      border-radius: 6px;
+    .control-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: #333;
     }
 
     .layers-panel {
@@ -51,15 +50,21 @@
       background: rgba(255,255,255,0.95);
       padding: 6px;
       border-radius: 6px;
-      z-index: 2000;
+      border: 1px solid #ccc;
+      z-index: 3000;
     }
 
     .layer-btn {
-      padding: 6px;
+      padding: 6px 10px;
       border: 1px solid #999;
-      border-radius: 5px;
+      border-radius: 4px;
       cursor: pointer;
       background: #f0f0f0;
+    }
+
+    .layer-btn.active {
+      background: #bbb;
+      font-weight: bold;
     }
 
     .dark-theme { background:#1e1e1e; }
@@ -71,10 +76,19 @@
 
 <div id="map" class="dark-theme"></div>
 
-<!-- выбор карты и даты -->
-<div class="top-left-panel">
-  <select id="mapSelect"></select>
-  <select id="dateSelect"></select>
+<!-- КНОПКИ -->
+<div class="control-panel">
+
+  <!-- тема -->
+  <button class="control-btn" id="theme-btn">
+    🌙
+  </button>
+
+  <!-- скачать -->
+  <a class="control-btn" download href="images/photo_2025-08-13_21-06-28.jpg">
+    ⬇
+  </a>
+
 </div>
 
 <!-- слои -->
@@ -83,113 +97,147 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-/* -----------------------------
-   1. КОНФИГ КАРТ + ДАТ
-------------------------------*/
-const MAP_DATA = {
-  world: ["2026-04-15", "2026-06-04"],
-  kiraine: ["2026-06-04"],
-  america: ["2026-01-01"],
-  altworld: ["2025-05-21"]
-};
+  // =========================
+  // 1. ДАТЫ (СИСТЕМА)
+  // =========================
+  const availableDates = ["2026-06-04"];
+  const currentDate = availableDates[availableDates.length - 1]; // всегда последняя
 
-/* -----------------------------
-   2. ЛИСТ СЛОЁВ
-------------------------------*/
-const LAYERS = [
-  "fiction_countries.png",
-  "real_world.png",
-  "infrastructure.png",
-  "city_names.png",
-  "country_names.png",
-  "divisions.png",
-  "layer13.png",
-  "foto.png"
-];
+  // =========================
+  // 2. КАРТА
+  // =========================
+  const minZoom = window.innerWidth < 768 ? -6 : -4;
 
-/* -----------------------------
-   3. ИНИЦ КАРТЫ
-------------------------------*/
-let map = L.map('map', {
-  crs: L.CRS.Simple,
-  minZoom: -6,
-  maxZoom: 2,
-  attributionControl: false
-});
-
-let bounds = [[0,0],[10000,15000]];
-map.fitBounds(bounds);
-
-/* -----------------------------
-   4. DOM
-------------------------------*/
-const mapSelect = document.getElementById("mapSelect");
-const dateSelect = document.getElementById("dateSelect");
-
-/* -----------------------------
-   5. ЗАПОЛНЯЕМ КАРТЫ
-------------------------------*/
-Object.keys(MAP_DATA).forEach(mapName => {
-  let opt = document.createElement("option");
-  opt.value = mapName;
-  opt.textContent = mapName;
-  mapSelect.appendChild(opt);
-});
-
-/* -----------------------------
-   6. ОБНОВИТЬ ДАТЫ
-------------------------------*/
-function updateDates(mapName) {
-  dateSelect.innerHTML = "";
-
-  MAP_DATA[mapName].forEach(date => {
-    let opt = document.createElement("option");
-    opt.value = date;
-    opt.textContent = date;
-    dateSelect.appendChild(opt);
+  const map = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom,
+    maxZoom: 2,
+    attributionControl: false
   });
-}
 
-/* -----------------------------
-   7. ТЕКУЩИЕ СЛОИ
-------------------------------*/
-let currentLayers = [];
+  const baseBounds = [[0,0],[10000,15000]];
+  const safeBounds = [[-1000,-1000],[11000,16000]];
 
-/* -----------------------------
-   8. ЗАГРУЗКА СЛОЁВ
-------------------------------*/
-function loadMap(mapName, date) {
+  map.fitBounds(baseBounds);
+  map.setMaxBounds(safeBounds);
 
-  currentLayers.forEach(l => map.removeLayer(l));
-  currentLayers = [];
+  // =========================
+  // 3. СЛОИ (shared + date)
+  // =========================
 
-  let basePath = `images/${mapName}/${date}/`;
+  const fictionCountries = L.imageOverlay(
+    `images/world/${currentDate}/fiction_countries.png`,
+    baseBounds
+  ).addTo(map);
 
-  LAYERS.forEach(file => {
-    let layer = L.imageOverlay(basePath + file, bounds);
-    layer.addTo(map);
-    currentLayers.push(layer);
+  const realWorld = L.imageOverlay(
+    `images/shared/real_world/real_world.png`,
+    baseBounds,
+    {opacity: 0.3}
+  );
+
+  const infrastructure = L.imageOverlay(
+    `images/world/${currentDate}/infrastructure.png`,
+    baseBounds
+  );
+
+  const cityNames = L.imageOverlay(
+    `images/world/${currentDate}/city_names.png`,
+    baseBounds,
+    {opacity: 0.8}
+  );
+
+  const countryNames = L.imageOverlay(
+    `images/world/${currentDate}/country_names.png`,
+    baseBounds,
+    {opacity: 0.8}
+  );
+
+  const divisions = L.imageOverlay(
+    `images/shared/divisions/divisions.png`,
+    baseBounds
+  );
+
+  const foto = L.imageOverlay(
+    `images/shared/foto/foto.png`,
+    baseBounds
+  );
+
+  const layer13 = L.imageOverlay(
+    `images/shared/layer13/layer13.png`,
+    baseBounds
+  );
+
+  const overlayOrder = [
+    fictionCountries,
+    realWorld,
+    infrastructure,
+    divisions,
+    countryNames,
+    cityNames,
+    layer13,
+    foto
+  ];
+
+  const overlayMap = {
+    "Фото": foto,
+    "Layer 13": layer13,
+    "Названия стран": countryNames,
+    "Названия городов": cityNames,
+    "Дивизии": divisions,
+    "Инфраструктура": infrastructure,
+    "Реальный мир": realWorld
+  };
+
+  // =========================
+  // 4. UI СЛОЁВ
+  // =========================
+  const panel = document.getElementById("layers-panel");
+
+  Object.keys(overlayMap).forEach(name => {
+    const btn = document.createElement("button");
+    btn.className = "layer-btn";
+    btn.textContent = name;
+
+    btn.onclick = () => {
+      const layer = overlayMap[name];
+
+      if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+        btn.classList.remove("active");
+      } else {
+        map.addLayer(layer);
+        btn.classList.add("active");
+
+        overlayOrder.forEach(l => {
+          if (map.hasLayer(l)) l.bringToFront();
+        });
+      }
+    };
+
+    panel.appendChild(btn);
   });
-}
 
-/* -----------------------------
-   9. СОБЫТИЯ
-------------------------------*/
-mapSelect.addEventListener("change", () => {
-  updateDates(mapSelect.value);
-  loadMap(mapSelect.value, MAP_DATA[mapSelect.value][0]);
-});
+  // =========================
+  // 5. ТЕМА
+  // =========================
+  const themeBtn = document.getElementById("theme-btn");
+  const mapDiv = document.getElementById("map");
 
-dateSelect.addEventListener("change", () => {
-  loadMap(mapSelect.value, dateSelect.value);
-});
+  themeBtn.onclick = () => {
+    if (mapDiv.classList.contains("dark-theme")) {
+      mapDiv.classList.replace("dark-theme", "light-theme");
+    } else {
+      mapDiv.classList.replace("light-theme", "dark-theme");
+    }
+  };
 
-/* -----------------------------
-   10. INIT
-------------------------------*/
-mapSelect.value = "world";
-updateDates("world");
-loadMap("world", MAP_DATA["world"][0]);
+  // =========================
+  // 6. RESIZE ZOOM FIX
+  // =========================
+  window.addEventListener("resize", () => {
+    map.setMinZoom(window.innerWidth < 768 ? -6 : -4);
+  });
 
 </script>
 
