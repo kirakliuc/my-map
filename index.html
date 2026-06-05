@@ -15,7 +15,6 @@
       width: 100%;
     }
 
-    /* TOP BAR */
     .top-bar {
       position: fixed;
       top: 10px;
@@ -25,9 +24,7 @@
       z-index: 5000;
     }
 
-    .dropdown {
-      position: relative;
-    }
+    .dropdown { position: relative; }
 
     .drop-btn {
       background: rgba(255,255,255,0.9);
@@ -57,22 +54,14 @@
       cursor: pointer;
     }
 
-    .menu button:hover {
-      background: #eee;
-    }
+    .menu button:hover { background: #eee; }
 
-    .dropdown.open .menu {
-      display: block;
-    }
+    .dropdown.open .menu { display: block; }
 
-    /* RIGHT PANEL */
     .control-panel {
       position: fixed;
       top: 10px;
       right: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
       z-index: 5000;
     }
 
@@ -84,7 +73,6 @@
       cursor: pointer;
     }
 
-    /* LAYERS */
     .layers-panel {
       position: fixed;
       bottom: 10px;
@@ -93,32 +81,17 @@
       padding: 6px;
       border-radius: 6px;
       z-index: 5000;
-      max-height: 50vh;
-      overflow-y: auto;
     }
 
     .layer-btn {
       display: block;
       margin: 4px 0;
       padding: 4px 8px;
-      border: 1px solid #999;
-      background: #f0f0f0;
       cursor: pointer;
-      border-radius: 4px;
-    }
-
-    .layer-btn.active {
-      background: #bbb;
     }
 
     .dark-theme { background:#1e1e1e; }
     .light-theme { background:#fff; }
-
-    /* FIX Leaflet zoom buttons overlap */
-    .leaflet-top.leaflet-left {
-      top: 90px !important;
-    }
-
   </style>
 </head>
 
@@ -126,10 +99,8 @@
 
 <div id="map" class="dark-theme"></div>
 
-<!-- TOP BAR -->
 <div class="top-bar">
 
-  <!-- MAP -->
   <div class="dropdown" id="mapSelect">
     <button class="drop-btn" id="mapBtn">world</button>
     <div class="menu">
@@ -140,7 +111,6 @@
     </div>
   </div>
 
-  <!-- DATE -->
   <div class="dropdown" id="dateSelect">
     <button class="drop-btn" id="dateBtn">2026-06-04</button>
     <div class="menu">
@@ -150,28 +120,29 @@
 
 </div>
 
-<!-- RIGHT -->
 <div class="control-panel">
   <button class="control-btn" id="themeBtn">theme</button>
-  <a class="control-btn" href="images/photo_2025-08-13_21-06-28.jpg" download>download</a>
 </div>
 
-<!-- LAYERS -->
 <div class="layers-panel" id="layers"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
+
 /* ======================
-   STATE
+   MAP CONFIG (ВАЖНО)
 ====================== */
+
+const mapConfig = {
+  world:   { w: 15000, h: 10000 },
+  kiraine: { w: 7500,  h: 4700  },
+  america: { w: 12120, h: 12399 },
+  altworld:{ w: 15000, h: 10000 }
+};
 
 let currentMap = "world";
 let currentDate = "2026-06-04";
-
-/* ======================
-   MAP INIT
-====================== */
 
 let map = L.map("map", {
   crs: L.CRS.Simple,
@@ -180,61 +151,65 @@ let map = L.map("map", {
   attributionControl: false
 });
 
-let bounds = [[0,0],[10000,15000]];
-let extendedBounds = [[-1000,-1000],[11000,16000]];
+let extendedBounds = [[-1000,-1000],[20000,20000]];
 
-map.fitBounds(bounds);
 map.setMaxBounds(extendedBounds);
-
-/* ======================
-   LAYERS
-====================== */
 
 let layerObjects = {};
 
+/* ======================
+   BUILD MAP
+====================== */
+
+function getBounds() {
+  const cfg = mapConfig[currentMap];
+  return [[0,0],[cfg.h, cfg.w]];
+}
+
 function buildLayers() {
 
-  // remove old layers
   Object.values(layerObjects).forEach(l => map.removeLayer(l));
+  layerObjects = {};
 
-  layerObjects = {
+  const bounds = getBounds();
 
-    fiction: L.imageOverlay(
-      `images/${currentMap}/${currentDate}/fiction_countries.png`,
-      bounds
-    ).addTo(map),
+  layerObjects.fiction = L.imageOverlay(
+    `images/${currentMap}/${currentDate}/fiction_countries.png`,
+    bounds
+  ).addTo(map);
 
-    real: L.imageOverlay(
-      `images/${currentMap}/${currentDate}/real_world.png`,
-      bounds,
-      {opacity:0.3}
-    ),
+  layerObjects.real = L.imageOverlay(
+    `images/${currentMap}/${currentDate}/real_world.png`,
+    bounds,
+    {opacity:0.3}
+  );
 
-    infra: L.imageOverlay(
-      `images/${currentMap}/${currentDate}/infrastructure.png`,
-      bounds
-    ),
+  layerObjects.infra = L.imageOverlay(
+    `images/${currentMap}/${currentDate}/infrastructure.png`,
+    bounds
+  );
 
-    cities: L.imageOverlay(
-      `images/${currentMap}/${currentDate}/city_names.png`,
-      bounds,
-      {opacity:0.8}
-    ),
+  layerObjects.cities = L.imageOverlay(
+    `images/${currentMap}/${currentDate}/city_names.png`,
+    bounds,
+    {opacity:0.8}
+  );
 
-    countries: L.imageOverlay(
-      `images/${currentMap}/${currentDate}/country_names.png`,
-      bounds,
-      {opacity:0.8}
-    )
-  };
+  layerObjects.countries = L.imageOverlay(
+    `images/${currentMap}/${currentDate}/country_names.png`,
+    bounds,
+    {opacity:0.8}
+  );
 
   layerObjects.fiction.addTo(map);
+
+  map.fitBounds(bounds);
 
   renderLayers();
 }
 
 /* ======================
-   LAYERS UI
+   UI LAYERS
 ====================== */
 
 function renderLayers() {
@@ -248,13 +223,10 @@ function renderLayers() {
     btn.textContent = name;
 
     btn.onclick = () => {
-
       if (map.hasLayer(layer)) {
         map.removeLayer(layer);
-        btn.classList.remove("active");
       } else {
         map.addLayer(layer);
-        btn.classList.add("active");
       }
     };
 
@@ -269,7 +241,7 @@ function renderLayers() {
 buildLayers();
 
 /* ======================
-   MAP SELECT
+   MAP SWITCH
 ====================== */
 
 const mapBtn = document.getElementById("mapBtn");
@@ -277,7 +249,7 @@ const mapSelect = document.getElementById("mapSelect");
 
 mapBtn.onclick = () => mapSelect.classList.toggle("open");
 
-mapSelect.querySelectorAll("button[data-map]").forEach(b => {
+mapSelect.querySelectorAll("[data-map]").forEach(b => {
   b.onclick = () => {
     currentMap = b.dataset.map;
     mapBtn.textContent = currentMap;
@@ -287,7 +259,7 @@ mapSelect.querySelectorAll("button[data-map]").forEach(b => {
 });
 
 /* ======================
-   DATE SELECT
+   DATE SWITCH
 ====================== */
 
 const dateBtn = document.getElementById("dateBtn");
@@ -295,7 +267,7 @@ const dateSelect = document.getElementById("dateSelect");
 
 dateBtn.onclick = () => dateSelect.classList.toggle("open");
 
-dateSelect.querySelectorAll("button[data-date]").forEach(b => {
+dateSelect.querySelectorAll("[data-date]").forEach(b => {
   b.onclick = () => {
     currentDate = b.dataset.date;
     dateBtn.textContent = currentDate;
@@ -314,16 +286,13 @@ document.getElementById("themeBtn").onclick = () => {
   m.classList.toggle("light-theme");
 };
 
-/* ======================
-   CLOSE DROPDOWNS
-====================== */
-
 window.addEventListener("click", e => {
   if (!e.target.closest(".dropdown")) {
     document.querySelectorAll(".dropdown")
       .forEach(d => d.classList.remove("open"));
   }
 });
+
 </script>
 
 </body>
