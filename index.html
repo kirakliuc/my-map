@@ -205,7 +205,7 @@ function buildLayers() {
     ).addTo(map),
 
     real: L.imageOverlay(
-      `images/shared/real_world/real_world.png`,
+      `images/${currentMap}/${currentDate}/real_world.png`,
       bounds,
       {opacity:0.3}
     ),
