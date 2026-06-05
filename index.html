@@ -176,12 +176,12 @@ function buildLayers() {
   layerObjects.fiction = L.imageOverlay(
     `images/${currentMap}/${currentDate}/fiction_countries.png`,
     bounds
-  ).addTo(map);
+  );
 
   layerObjects.real = L.imageOverlay(
     `images/${currentMap}/${currentDate}/real_world.png`,
     bounds,
-    {opacity:0.3}
+    { opacity: 0.3 }
   );
 
   layerObjects.infra = L.imageOverlay(
@@ -192,18 +192,33 @@ function buildLayers() {
   layerObjects.cities = L.imageOverlay(
     `images/${currentMap}/${currentDate}/city_names.png`,
     bounds,
-    {opacity:0.8}
+    { opacity: 0.8 }
   );
 
   layerObjects.countries = L.imageOverlay(
     `images/${currentMap}/${currentDate}/country_names.png`,
     bounds,
-    {opacity:0.8}
+    { opacity: 0.8 }
   );
 
   layerObjects.fiction.addTo(map);
 
-  map.fitBounds(bounds);
+  if (firstLoad) {
+
+    map.fitBounds(bounds);
+
+    firstLoad = false;
+
+  } else {
+
+    const center = [
+      bounds[1][0] / 2,
+      bounds[1][1] / 2
+    ];
+
+    map.setView(center, map.getZoom());
+
+  }
 
   renderLayers();
 }
