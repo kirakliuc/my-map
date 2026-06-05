@@ -4,12 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>шизофрения</title>
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css" />
+
   <style>
-    #map { 
-      height: 100vh; 
-      width: 100%; 
+    #map {
+      height: 100vh;
+      width: 100%;
     }
 
     .control-panel {
@@ -22,27 +23,22 @@
       z-index: 2000;
     }
 
-    .control-btn {
-      background-color: rgba(255, 255, 255, 0.9);
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 6px;
-      cursor: pointer;
+    .top-left-panel {
+      position: fixed;
+      top: 10px;
+      left: 10px;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: 0.2s;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 2000;
+      background: rgba(255,255,255,0.9);
+      padding: 6px;
+      border-radius: 6px;
     }
 
-    .control-btn:hover {
-      background-color: rgba(200, 200, 200, 0.9);
-    }
-
-    .control-btn svg {
-      display: block;
-      stroke: #333;
-      width: 20px;
-      height: 20px;
+    select {
+      padding: 6px;
+      border-radius: 6px;
     }
 
     .layers-panel {
@@ -52,153 +48,150 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255,255,255,0.95);
       padding: 6px;
       border-radius: 6px;
-      border: 1px solid #ccc;
       z-index: 2000;
     }
 
     .layer-btn {
-      padding: 4px 8px;
-      cursor: pointer;
+      padding: 6px;
       border: 1px solid #999;
-      border-radius: 4px;
+      border-radius: 5px;
+      cursor: pointer;
       background: #f0f0f0;
-      transition: 0.2s;
     }
 
-    .layer-btn:hover {
-      background: #ddd;
-    }
-
-    .layer-btn.active {
-      background: #bbb;
-      font-weight: bold;
-    }
-
-    .dark-theme {
-      background-color: #1e1e1e;
-      color: #ffffff;
-    }
-
-    .light-theme {
-      background-color: #ffffff;
-      color: #000000;
-    }
+    .dark-theme { background:#1e1e1e; }
+    .light-theme { background:#fff; }
   </style>
 </head>
+
 <body>
 
 <div id="map" class="dark-theme"></div>
 
-<div class="control-panel">
-  <button class="control-btn" id="theme-btn" title="Сменить тему">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="5"/>
-      <line x1="12" y1="1" x2="12" y2="3"/>
-      <line x1="12" y1="21" x2="12" y2="23"/>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-      <line x1="1" y1="12" x2="3" y2="12"/>
-      <line x1="21" y1="12" x2="23" y2="12"/>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-    </svg>
-  </button>
-
-  <a href="images/photo_2025-08-13_21-06-28.jpg" download class="control-btn" title="Скачать Прігожина">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-      <polyline points="7 10 12 15 17 10"/>
-      <line x1="12" y1="15" x2="12" y2="3"/>
-    </svg>
-  </a>
+<!-- выбор карты и даты -->
+<div class="top-left-panel">
+  <select id="mapSelect"></select>
+  <select id="dateSelect"></select>
 </div>
 
+<!-- слои -->
 <div class="layers-panel" id="layers-panel"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script>
-  // Определяем зум для мобильных
-  let minZoom = window.innerWidth < 768 ? -6 : -4;
-  let maxZoom = 2;
+/* -----------------------------
+   1. КОНФИГ КАРТ + ДАТ
+------------------------------*/
+const MAP_DATA = {
+  world: ["2026-04-15", "2026-06-02"],
+  kiraine: ["2026-05-10"],
+  america: ["2026-01-01"],
+  altworld: ["2025-05-21"]
+};
 
-  let map = L.map('map', { 
-    crs: L.CRS.Simple, 
-    minZoom: minZoom, 
-    maxZoom: maxZoom,
-    attributionControl: false
+/* -----------------------------
+   2. ЛИСТ СЛОЁВ
+------------------------------*/
+const LAYERS = [
+  "fiction_countries.png",
+  "real_world.png",
+  "infrastructure.png",
+  "city_names.png",
+  "country_names.png",
+  "divisions.png",
+  "layer13.png",
+  "foto.png"
+];
+
+/* -----------------------------
+   3. ИНИЦ КАРТЫ
+------------------------------*/
+let map = L.map('map', {
+  crs: L.CRS.Simple,
+  minZoom: -6,
+  maxZoom: 2,
+  attributionControl: false
+});
+
+let bounds = [[0,0],[10000,15000]];
+map.fitBounds(bounds);
+
+/* -----------------------------
+   4. DOM
+------------------------------*/
+const mapSelect = document.getElementById("mapSelect");
+const dateSelect = document.getElementById("dateSelect");
+
+/* -----------------------------
+   5. ЗАПОЛНЯЕМ КАРТЫ
+------------------------------*/
+Object.keys(MAP_DATA).forEach(mapName => {
+  let opt = document.createElement("option");
+  opt.value = mapName;
+  opt.textContent = mapName;
+  mapSelect.appendChild(opt);
+});
+
+/* -----------------------------
+   6. ОБНОВИТЬ ДАТЫ
+------------------------------*/
+function updateDates(mapName) {
+  dateSelect.innerHTML = "";
+
+  MAP_DATA[mapName].forEach(date => {
+    let opt = document.createElement("option");
+    opt.value = date;
+    opt.textContent = date;
+    dateSelect.appendChild(opt);
   });
+}
 
-  let mapBounds = [[-1000, -1000], [11000, 16000]];
-  let defaultBounds = [[0,0],[10000,15000]];
-  map.fitBounds(defaultBounds);
-  map.setMaxBounds(mapBounds, { maxBoundsViscosity: 0.5 });
+/* -----------------------------
+   7. ТЕКУЩИЕ СЛОИ
+------------------------------*/
+let currentLayers = [];
 
-  let foto = L.imageOverlay('images/foto.png', defaultBounds);
-  let layer13 = L.imageOverlay('images/layer13.png', defaultBounds);
-  let countryNames = L.imageOverlay('images/country_names.png', defaultBounds, {opacity: 0.8});
-  let cityNames = L.imageOverlay('images/city_names.png', defaultBounds, {opacity: 0.8});
-  let divisions = L.imageOverlay('images/divisions.png', defaultBounds);
-  let infrastructure = L.imageOverlay('images/infrastructure.png', defaultBounds);
-  let realWorld = L.imageOverlay('images/real_world.png', defaultBounds, {opacity: 0.3});
-  let fictionCountries = L.imageOverlay('images/fiction_countries/04.03.2026.png', defaultBounds).addTo(map);
+/* -----------------------------
+   8. ЗАГРУЗКА СЛОЁВ
+------------------------------*/
+function loadMap(mapName, date) {
 
-  let overlayOrder = [fictionCountries, realWorld, infrastructure, divisions, countryNames, cityNames, layer13, foto];
+  currentLayers.forEach(l => map.removeLayer(l));
+  currentLayers = [];
 
-  let overlayMap = {
-    "Фото": foto,
-    "Шар 13": layer13,
-    "Назви країн": countryNames,
-    "Назви міст": cityNames,
-    "Дивізії": divisions,
-    "Інфраструктура": infrastructure,
-    "Реальний світ": realWorld,
-  };
+  let basePath = `images/${mapName}/${date}/`;
 
-  const layersPanel = document.getElementById('layers-panel');
-  Object.keys(overlayMap).forEach(name => {
-    let btn = document.createElement('button');
-    btn.className = 'layer-btn';
-    btn.textContent = name;
-
-    btn.addEventListener('click', () => {
-      let layer = overlayMap[name];
-      if(map.hasLayer(layer)) {
-        map.removeLayer(layer);
-        btn.classList.remove('active');
-      } else {
-        map.addLayer(layer);
-        btn.classList.add('active');
-        overlayOrder.forEach(l => {
-          if(map.hasLayer(l)) l.bringToFront();
-        });
-      }
-    });
-
-    layersPanel.appendChild(btn);
+  LAYERS.forEach(file => {
+    let layer = L.imageOverlay(basePath + file, bounds);
+    layer.addTo(map);
+    currentLayers.push(layer);
   });
+}
 
-  const themeButton = document.getElementById('theme-btn');
-  const mapDiv = document.getElementById('map');
-  themeButton.addEventListener('click', () => {
-    if(mapDiv.classList.contains('light-theme')) {
-      mapDiv.classList.replace('light-theme','dark-theme');
-    } else {
-      mapDiv.classList.replace('dark-theme','light-theme');
-    }
-  });
+/* -----------------------------
+   9. СОБЫТИЯ
+------------------------------*/
+mapSelect.addEventListener("change", () => {
+  updateDates(mapSelect.value);
+  loadMap(mapSelect.value, MAP_DATA[mapSelect.value][0]);
+});
 
-  // Динамически меняем minZoom при изменении размера экрана
-  window.addEventListener('resize', () => {
-    let newMinZoom = window.innerWidth < 768 ? -6 : -4;
-    map.setMinZoom(newMinZoom);
-  });
+dateSelect.addEventListener("change", () => {
+  loadMap(mapSelect.value, dateSelect.value);
+});
+
+/* -----------------------------
+   10. INIT
+------------------------------*/
+mapSelect.value = "world";
+updateDates("world");
+loadMap("world", MAP_DATA["world"][0]);
+
 </script>
 
 </body>
 </html>
-
-
-
