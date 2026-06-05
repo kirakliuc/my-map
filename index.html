@@ -3,12 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>шизофрения</title>
+  <title>map system</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
   <style>
-    #map { height: 100vh; width: 100%; }
+    html, body { margin:0; padding:0; height:100%; }
+
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
 
     /* TOP BAR */
     .top-bar {
@@ -17,7 +22,7 @@
       left: 10px;
       display: flex;
       gap: 8px;
-      z-index: 4000;
+      z-index: 5000;
     }
 
     .dropdown {
@@ -41,6 +46,7 @@
       border-radius: 6px;
       display: none;
       min-width: 160px;
+      z-index: 6000;
     }
 
     .menu button {
@@ -67,17 +73,18 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      z-index: 3000;
+      z-index: 5000;
     }
 
     .control-btn {
       background: rgba(255,255,255,0.9);
       border: 1px solid #ccc;
-      padding: 6px;
+      padding: 6px 10px;
       border-radius: 6px;
       cursor: pointer;
     }
 
+    /* LAYERS */
     .layers-panel {
       position: fixed;
       bottom: 10px;
@@ -85,16 +92,33 @@
       background: rgba(255,255,255,0.95);
       padding: 6px;
       border-radius: 6px;
-      z-index: 3000;
+      z-index: 5000;
+      max-height: 50vh;
+      overflow-y: auto;
     }
 
     .layer-btn {
       display: block;
       margin: 4px 0;
+      padding: 4px 8px;
+      border: 1px solid #999;
+      background: #f0f0f0;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .layer-btn.active {
+      background: #bbb;
     }
 
     .dark-theme { background:#1e1e1e; }
     .light-theme { background:#fff; }
+
+    /* FIX Leaflet zoom buttons overlap */
+    .leaflet-top.leaflet-left {
+      top: 90px !important;
+    }
+
   </style>
 </head>
 
@@ -102,10 +126,10 @@
 
 <div id="map" class="dark-theme"></div>
 
-<!-- TOP CONTROLS -->
+<!-- TOP BAR -->
 <div class="top-bar">
 
-  <!-- MAP SELECT -->
+  <!-- MAP -->
   <div class="dropdown" id="mapSelect">
     <button class="drop-btn" id="mapBtn">world</button>
     <div class="menu">
@@ -116,7 +140,7 @@
     </div>
   </div>
 
-  <!-- DATE SELECT -->
+  <!-- DATE -->
   <div class="dropdown" id="dateSelect">
     <button class="drop-btn" id="dateBtn">2026-06-04</button>
     <div class="menu">
@@ -126,28 +150,30 @@
 
 </div>
 
-<!-- SIDE -->
+<!-- RIGHT -->
 <div class="control-panel">
   <button class="control-btn" id="themeBtn">theme</button>
+  <a class="control-btn" href="images/photo_2025-08-13_21-06-28.jpg" download>download</a>
 </div>
 
+<!-- LAYERS -->
 <div class="layers-panel" id="layers"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-/* =========================
+/* ======================
    STATE
-========================= */
+====================== */
 
 let currentMap = "world";
 let currentDate = "2026-06-04";
 
-/* =========================
-   MAP
-========================= */
+/* ======================
+   MAP INIT
+====================== */
 
-let map = L.map('map', {
+let map = L.map("map", {
   crs: L.CRS.Simple,
   minZoom: -6,
   maxZoom: 2,
@@ -155,103 +181,149 @@ let map = L.map('map', {
 });
 
 let bounds = [[0,0],[10000,15000]];
+let extendedBounds = [[-1000,-1000],[11000,16000]];
+
 map.fitBounds(bounds);
-map.setMaxBounds([[-1000,-1000],[11000,16000]]);
+map.setMaxBounds(extendedBounds);
 
-/* =========================
-   LAYERS FACTORY
-========================= */
+/* ======================
+   LAYERS
+====================== */
 
-function loadLayers() {
+let layerObjects = {};
 
-  if (window.layersGroup) {
-    window.layersGroup.forEach(l => map.removeLayer(l));
-  }
+function buildLayers() {
 
-  const fiction = L.imageOverlay(
-    `images/${currentMap}/${currentDate}/fiction_countries.png`,
-    bounds
-  ).addTo(map);
+  // remove old layers
+  Object.values(layerObjects).forEach(l => map.removeLayer(l));
 
-  const real = L.imageOverlay(
-    `images/shared/real_world/real_world.png`,
-    bounds,
-    {opacity:0.3}
-  );
+  layerObjects = {
 
-  const infra = L.imageOverlay(
-    `images/${currentMap}/${currentDate}/infrastructure.png`,
-    bounds
-  );
+    fiction: L.imageOverlay(
+      `images/${currentMap}/${currentDate}/fiction_countries.png`,
+      bounds
+    ).addTo(map),
 
-  const cities = L.imageOverlay(
-    `images/${currentMap}/${currentDate}/city_names.png`,
-    bounds,
-    {opacity:0.8}
-  );
+    real: L.imageOverlay(
+      `images/shared/real_world/real_world.png`,
+      bounds,
+      {opacity:0.3}
+    ),
 
-  const countries = L.imageOverlay(
-    `images/${currentMap}/${currentDate}/country_names.png`,
-    bounds,
-    {opacity:0.8}
-  );
+    infra: L.imageOverlay(
+      `images/${currentMap}/${currentDate}/infrastructure.png`,
+      bounds
+    ),
 
-  window.layersGroup = [fiction, real, infra, cities, countries];
+    cities: L.imageOverlay(
+      `images/${currentMap}/${currentDate}/city_names.png`,
+      bounds,
+      {opacity:0.8}
+    ),
 
+    countries: L.imageOverlay(
+      `images/${currentMap}/${currentDate}/country_names.png`,
+      bounds,
+      {opacity:0.8}
+    )
+  };
+
+  layerObjects.fiction.addTo(map);
+
+  renderLayers();
 }
 
-/* =========================
+/* ======================
+   LAYERS UI
+====================== */
+
+function renderLayers() {
+  const box = document.getElementById("layers");
+  box.innerHTML = "";
+
+  Object.entries(layerObjects).forEach(([name, layer]) => {
+
+    const btn = document.createElement("button");
+    btn.className = "layer-btn";
+    btn.textContent = name;
+
+    btn.onclick = () => {
+
+      if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+        btn.classList.remove("active");
+      } else {
+        map.addLayer(layer);
+        btn.classList.add("active");
+      }
+    };
+
+    box.appendChild(btn);
+  });
+}
+
+/* ======================
    INIT
-========================= */
+====================== */
 
-loadLayers();
+buildLayers();
 
-/* =========================
+/* ======================
    MAP SELECT
-========================= */
+====================== */
 
 const mapBtn = document.getElementById("mapBtn");
 const mapSelect = document.getElementById("mapSelect");
 
 mapBtn.onclick = () => mapSelect.classList.toggle("open");
 
-mapSelect.querySelectorAll("button[data-map]").forEach(btn => {
-  btn.onclick = () => {
-    currentMap = btn.dataset.map;
+mapSelect.querySelectorAll("button[data-map]").forEach(b => {
+  b.onclick = () => {
+    currentMap = b.dataset.map;
     mapBtn.textContent = currentMap;
     mapSelect.classList.remove("open");
-    loadLayers();
+    buildLayers();
   };
 });
 
-/* =========================
+/* ======================
    DATE SELECT
-========================= */
+====================== */
 
 const dateBtn = document.getElementById("dateBtn");
 const dateSelect = document.getElementById("dateSelect");
 
 dateBtn.onclick = () => dateSelect.classList.toggle("open");
 
-dateSelect.querySelectorAll("button[data-date]").forEach(btn => {
-  btn.onclick = () => {
-    currentDate = btn.dataset.date;
+dateSelect.querySelectorAll("button[data-date]").forEach(b => {
+  b.onclick = () => {
+    currentDate = b.dataset.date;
     dateBtn.textContent = currentDate;
     dateSelect.classList.remove("open");
-    loadLayers();
+    buildLayers();
   };
 });
 
-/* =========================
-   CLOSE DROPDOWNS
-========================= */
+/* ======================
+   THEME
+====================== */
 
-window.addEventListener("click", (e) => {
+document.getElementById("themeBtn").onclick = () => {
+  const m = document.getElementById("map");
+  m.classList.toggle("dark-theme");
+  m.classList.toggle("light-theme");
+};
+
+/* ======================
+   CLOSE DROPDOWNS
+====================== */
+
+window.addEventListener("click", e => {
   if (!e.target.closest(".dropdown")) {
-    document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
+    document.querySelectorAll(".dropdown")
+      .forEach(d => d.classList.remove("open"));
   }
 });
-
 </script>
 
 </body>
