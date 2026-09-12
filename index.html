@@ -131,7 +131,7 @@
 <script>
 
 /* ======================
-   MAP CONFIG (ВАЖНО)
+   MAP CONFIG (РАЗМЕРЫ)
 ====================== */
 
 const mapConfig = {
@@ -146,70 +146,79 @@ let currentDate = "2026-06-04";
 
 let map = L.map("map", {
   crs: L.CRS.Simple,
-  minZoom: -6,
-  maxZoom: 2,
+  minZoom: 0,
+  maxZoom: 6,
   attributionControl: false
 });
-
-let extendedBounds = [[-1000,-1000],[20000,20000]];
-
-map.setMaxBounds(extendedBounds);
 
 let layerObjects = {};
 
 /* ======================
-   BUILD MAP
+   BUILD MAP (ТАЙЛЫ И СЛОИ)
 ====================== */
 
 function getBounds() {
   const cfg = mapConfig[currentMap];
-  return [[0,0],[cfg.h, cfg.w]];
+  return [[0, 0], [cfg.h, cfg.w]];
+}
+
+// Порядок слоев по высоте (zIndex)
+const LAYER_Z_INDEX = {
+  real: 1,
+  fiction: 2,
+  infra: 3,
+  cities: 4,
+  countries: 5
+};
+
+// Прозрачность слоев
+const LAYER_OPACITY = {
+  real: 0.3,
+  fiction: 1.0,
+  infra: 1.0,
+  cities: 0.8,
+  countries: 0.8
+};
+
+function createTileLayer(layerName) {
+  const bounds = getBounds();
+  // Формат пути строго по вашей задумке:
+  // images/[map]/[date]/[layer]/tiles/512/{z}/{x}/{y}.webp
+  const tileUrl = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/{z}/{x}/{y}.webp`;
+
+  return L.tileLayer(tileUrl, {
+    tileSize: 512,
+    noWrap: true,
+    bounds: bounds,
+    opacity: LAYER_OPACITY[layerName] || 1.0,
+    zIndex: LAYER_Z_INDEX[layerName] || 10
+  });
 }
 
 function buildLayers() {
-
+  // Удаляем старые слои при переключении карты/даты
   Object.values(layerObjects).forEach(l => map.removeLayer(l));
   layerObjects = {};
 
   const bounds = getBounds();
+  map.setMaxBounds(bounds);
 
-  layerObjects.fiction = L.imageOverlay(
-    `images/${currentMap}/${currentDate}/fiction_countries.png`,
-    bounds
-  ).addTo(map);
+  // Создаем плиточные слои
+  layerObjects.real = createTileLayer('real');
+  layerObjects.fiction = createTileLayer('fiction');
+  layerObjects.infra = createTileLayer('infra');
+  layerObjects.cities = createTileLayer('cities');
+  layerObjects.countries = createTileLayer('countries');
 
-  layerObjects.real = L.imageOverlay(
-    `images/${currentMap}/${currentDate}/real_world.png`,
-    bounds,
-    {opacity:0.3}
-  );
-
-  layerObjects.infra = L.imageOverlay(
-    `images/${currentMap}/${currentDate}/infrastructure.png`,
-    bounds
-  );
-
-  layerObjects.cities = L.imageOverlay(
-    `images/${currentMap}/${currentDate}/city_names.png`,
-    bounds,
-    {opacity:0.8}
-  );
-
-  layerObjects.countries = L.imageOverlay(
-    `images/${currentMap}/${currentDate}/country_names.png`,
-    bounds,
-    {opacity:0.8}
-  );
-
+  // Включаем слой вымышленной карты по умолчанию
   layerObjects.fiction.addTo(map);
 
   map.fitBounds(bounds);
-
   renderLayers();
 }
 
 /* ======================
-   UI LAYERS
+   UI LAYERS (КНОПКИ В ВКЛ/ВЫКЛ)
 ====================== */
 
 function renderLayers() {
@@ -217,16 +226,22 @@ function renderLayers() {
   box.innerHTML = "";
 
   Object.entries(layerObjects).forEach(([name, layer]) => {
-
     const btn = document.createElement("button");
     btn.className = "layer-btn";
     btn.textContent = name;
+    
+    // Подсветка активной кнопки
+    if (map.hasLayer(layer)) {
+      btn.style.background = "#ddd";
+    }
 
     btn.onclick = () => {
       if (map.hasLayer(layer)) {
         map.removeLayer(layer);
+        btn.style.background = "white";
       } else {
         map.addLayer(layer);
+        btn.style.background = "#ddd";
       }
     };
 
