@@ -9,110 +9,56 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
-    html, body { margin:0; padding:0; height:100%; }
+    html, body { margin:0; padding:0; height:100%; width:100%; background: #1a1a1a; }
+    #map { height: 100vh; width: 100vw; background: #1a1a1a; }
 
-    #map {
-      height: 100vh;
-      width: 100%;
-    }
-
-    /* Верхнее меню переключения карт и дат */
+    /* Верхнее меню выбора карты и даты */
     .top-bar {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      display: flex;
-      gap: 8px;
-      z-index: 5000;
+      position: fixed; top: 10px; left: 10px;
+      display: flex; gap: 8px; z-index: 5000;
     }
-
     .dropdown { position: relative; }
-
     .drop-btn {
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #ccc;
-      padding: 6px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
+      background: rgba(255,255,255,0.9); border: 1px solid #ccc;
+      padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
     }
-
     .menu {
-      position: absolute;
-      top: 110%;
-      left: 0;
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      display: none;
-      min-width: 160px;
-      z-index: 6000;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      position: absolute; top: 110%; left: 0; background: white;
+      border: 1px solid #ccc; border-radius: 6px; display: none;
+      min-width: 160px; z-index: 6000; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     }
-
     .menu button {
-      width: 100%;
-      padding: 8px;
-      border: none;
-      background: white;
-      cursor: pointer;
-      text-align: left;
+      width: 100%; padding: 8px; border: none; background: white;
+      cursor: pointer; text-align: left;
     }
-
     .menu button:hover { background: #eee; }
-
     .dropdown.open .menu { display: block; }
 
-    /* Правая верхняя панель (переключатель темы) */
-    .control-panel {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      z-index: 5000;
-    }
-
+    /* Правая верхняя панель */
+    .control-panel { position: fixed; top: 10px; right: 10px; z-index: 5000; }
     .control-btn {
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #ccc;
-      padding: 6px 10px;
-      border-radius: 6px;
-      cursor: pointer;
+      background: rgba(255,255,255,0.9); border: 1px solid #ccc;
+      padding: 6px 10px; border-radius: 6px; cursor: pointer;
     }
 
     /* Панель слоев внизу справа */
     .layers-panel {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(255,255,255,0.95);
-      padding: 8px;
-      border-radius: 6px;
-      z-index: 5000;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      position: fixed; bottom: 10px; right: 10px;
+      background: rgba(255,255,255,0.95); padding: 8px;
+      border-radius: 6px; z-index: 5000; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     }
-
     .layer-btn {
-      display: block;
-      width: 100%;
-      margin: 4px 0;
-      padding: 6px 12px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background: white;
-      cursor: pointer;
-      text-align: left;
+      display: block; width: 100%; margin: 4px 0; padding: 6px 12px;
+      border: 1px solid #ccc; border-radius: 4px; background: white;
+      cursor: pointer; text-align: left;
     }
-
-    .dark-theme { background:#1e1e1e; }
-    .light-theme { background:#fff; }
   </style>
 </head>
 
 <body>
 
-<div id="map" class="dark-theme"></div>
+<div id="map"></div>
 
-<!-- Верхняя панель -->
 <div class="top-bar">
   <div class="dropdown" id="mapSelect">
     <button class="drop-btn" id="mapBtn">Карта</button>
@@ -135,32 +81,21 @@
 
 <script>
 
-/* =========================================================
-   1. ЕДИНСТВЕННОЕ МЕСТО, КУДА ВЫ ДОБАВЛЯЕТЕ НОВЫЕ ДАТЫ И СЛОИ
-========================================================= */
+/* Конфигурация доступных карт и слоев */
 const mapData = {
-  // Название типа карты (должно совпадать с папкой в images/)
   kiraine: {
-    w: 7500, h: 4700, // Размеры карты в пикселях
-    dates: ["2024-05-18"], // Список дат (самая свежая дата — ПОСЛЕДНЯЯ в списке)
-    layers: ["realworld", "fiction", "infra", "cities", "countries"] // Названия папок слоев
+    w: 7500, h: 4700,
+    dates: ["2024-05-18"],
+    layers: ["realworld", "fiction", "infra", "cities", "countries"]
   },
   altworld: {
     w: 15000, h: 10000,
     dates: ["2026-09-15"],
     layers: ["realworld", "fiction", "infra", "cities", "countries"]
-  },
-  world: {
-    w: 15000, h: 10000,
-    dates: ["2026-06-04"],
-    layers: ["realworld", "fiction", "infra", "cities", "countries"]
   }
 };
 
-/* =========================================================
-   2. ЛОГИКА ОТОБРАЖЕНИЯ КАРТЫ И ТАЙЛОВ
-========================================================= */
-let currentMap = "kiraine"; // Карта по умолчанию при открытии сайта
+let currentMap = "kiraine";
 let currentDate = "";
 let layerObjects = {};
 
@@ -172,38 +107,48 @@ let map = L.map("map", {
   attributionControl: false
 });
 
-function getBounds() {
-  const cfg = mapData[currentMap] || { w: 15000, h: 10000 };
-  return [[0, 0], [cfg.h, cfg.w]];
-}
+// Кастомный класс слоя с очисткой минуса из Y
+L.CustomGridLayer = L.TileLayer.extend({
+  createTile: function(coords, done) {
+    const tile = document.createElement('img');
+    tile.alt = '';
 
-// Прямое подключение тайлов из вашей структуры папок
+    const layerName = this.options.layerName;
+
+    // Убираем минус из координаты Y: Math.abs(coords.y)
+    const cleanX = Math.abs(coords.x);
+    const cleanY = Math.abs(coords.y);
+
+    tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${cleanY}.webp`;
+
+    L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
+    L.DomEvent.on(tile, 'error', L.Util.bind(this._tileOnError, this, done, tile));
+
+    return tile;
+  }
+});
+
 function createTileLayer(layerName) {
-  const bounds = getBounds();
-  
-  // Путь строго по вашей структуре: images/kiraine/2024-05-18/fiction/tiles/512/{x}/{y}.webp
-  const tileUrl = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/{x}/{y}.webp`;
+  const cfg = mapData[currentMap] || { w: 7500, h: 4700 };
+  const bounds = [[0, 0], [cfg.h, cfg.w]];
 
-  return L.tileLayer(tileUrl, {
+  return new L.CustomGridLayer('', {
     tileSize: 512,
     noWrap: true,
     bounds: bounds,
-    // Если картинка тайла не найдена, она просто прозрачная, а не ломает карту
-    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+    layerName: layerName
   });
 }
 
 function buildMap() {
-  // Очищаем старые слои
+  // Очищаем прошлые слои
   Object.values(layerObjects).forEach(l => map.removeLayer(l));
   layerObjects = {};
 
-  const bounds = getBounds();
-  map.setMaxBounds(bounds);
+  const cfg = mapData[currentMap] || { w: 7500, h: 4700 };
+  const activeLayers = cfg.layers || [];
+  const bounds = [[0, 0], [cfg.h, cfg.w]];
 
-  const activeLayers = mapData[currentMap].layers || [];
-
-  // Загружаем каждый слой
   activeLayers.forEach(lName => {
     const tileLayer = createTileLayer(lName);
     layerObjects[lName] = tileLayer;
@@ -244,9 +189,6 @@ function renderLayersUI() {
   });
 }
 
-/* =========================================================
-   3. УПРАВЛЕНИЕ МЕНЮ КАРТ И ДАТ
-========================================================= */
 function setupMenus() {
   const mapMenu = document.getElementById("mapMenu");
   mapMenu.innerHTML = "";
@@ -258,7 +200,6 @@ function setupMenus() {
     mapMenu.appendChild(btn);
   });
 
-  // Открываем первую карту из списка
   selectMap(currentMap);
 }
 
@@ -278,7 +219,6 @@ function selectMap(mapName) {
   });
 
   if (dates.length > 0) {
-    // Автоматически берем самую ПОСЛЕДНЮЮ (самую свежую) дату из массива
     selectDate(dates[dates.length - 1]);
   }
 }
@@ -289,7 +229,7 @@ function selectDate(dateStr) {
   buildMap();
 }
 
-// Старт работы при загрузке страницы
+// Запуск
 setupMenus();
 
 /* Взаимодействие с UI */
