@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>map system</title>
 
-  <!-- Стили Leaflet -->
+  <!-- Подключение базовых стилей интерактивной карты Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
+    /* Растягиваем холст на весь экран без полос прокрутки */
     html, body { margin:0; padding:0; height:100%; width:100%; background: #1a1a1a; }
     #map { height: 100vh; width: 100vw; background: #1a1a1a; }
 
-    /* Верхнее меню */
+    /* Верхнее левое меню переключения карт и дат */
     .top-bar {
       position: fixed; top: 10px; left: 10px;
       display: flex; gap: 8px; z-index: 5000;
@@ -34,14 +35,14 @@
     .menu button:hover { background: #eee; }
     .dropdown.open .menu { display: block; }
 
-    /* Переключатель темы */
+    /* Переключатель темной и светлой темы оформления */
     .control-panel { position: fixed; top: 10px; right: 10px; z-index: 5000; }
     .control-btn {
       background: rgba(255,255,255,0.9); border: 1px solid #ccc;
       padding: 6px 10px; border-radius: 6px; cursor: pointer;
     }
 
-    /* Панель слоев внизу */
+    /* Нижняя правая панель тумблеров слоев */
     .layers-panel {
       position: fixed; bottom: 10px; right: 10px;
       background: rgba(255,255,255,0.95); padding: 8px;
@@ -52,13 +53,18 @@
       border: 1px solid #ccc; border-radius: 4px; background: white;
       cursor: pointer; text-align: left;
     }
+
+    .dark-theme { background:#1e1e1e; }
+    .light-theme { background:#fff; }
   </style>
 </head>
 
 <body>
 
-<div id="map"></div>
+<!-- Контейнер для отображения карты -->
+<div id="map" class="dark-theme"></div>
 
+<!-- Выпадающие списки выбора карты и даты -->
 <div class="top-bar">
   <div class="dropdown" id="mapSelect">
     <button class="drop-btn" id="mapBtn">Карта</button>
@@ -71,17 +77,20 @@
   </div>
 </div>
 
+<!-- Кнопка смены темы -->
 <div class="control-panel">
   <button class="control-btn" id="themeBtn">theme</button>
 </div>
 
+<!-- Панель списка слоев текущей карты -->
 <div class="layers-panel" id="layers"></div>
 
+<!-- Подключение движка карт Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 
-/* Конфигурация карт и слоев */
+// Конфигурация доступных карт, размеров холста, дат и папок слоев
 const mapData = {
   kiraine: {
     w: 7500, h: 4700,
@@ -95,20 +104,21 @@ const mapData = {
   }
 };
 
+// Глобальные переменные текущего состояния системы
 let currentMap = "kiraine";
 let currentDate = "";
 let layerObjects = {};
 
-// Настройка карты: сглаженный зум и экономия памяти
+// Инициализация карты в плоской координатной системе с поддержкой плавного зумирования
 let map = L.map("map", {
   crs: L.CRS.Simple,
   minZoom: -5,
   maxZoom: 3,
-  zoomSnap: 0, // Плавное масштабирование без скачков
+  zoomSnap: 0, // Плавный зум без фиксированных шагов
   attributionControl: false
 });
 
-// Кастомный класс для точной загрузки тайлов и переворота Y
+// Кастомный загрузчик тайлов: инвертирует ось Y и строит точные пути к файлам
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
     const tile = document.createElement('img');
@@ -117,15 +127,17 @@ L.CustomGridLayer = L.TileLayer.extend({
     const layerName = this.options.layerName;
     const cfg = mapData[currentMap] || { w: 7500, h: 4700 };
 
-    // Считаем полное количество строк тайлов по высоте
+    // Расчет количества рядов тайлов по высоте для корректного переворота
     const totalRows = Math.ceil(cfg.h / 512);
 
-    // ИСПРАВЛЕНИЕ 1: Инвертируем Y, чтобы верхние тайлы были сверху, а нижние снизу
+    // Инверсия Y: превращаем нижние тайлы в верхние согласно файловой системе
     const correctedY = totalRows - 1 - Math.abs(coords.y);
     const cleanX = Math.abs(coords.x);
 
+    // Формирование итогового пути к `.webp` тайлу
     tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
 
+    // Обработка событий завершения или ошибки загрузки тайла
     L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
     L.DomEvent.on(tile, 'error', L.Util.bind(this._tileOnError, this, done, tile));
 
@@ -133,6 +145,7 @@ L.CustomGridLayer = L.TileLayer.extend({
   }
 });
 
+// Создание слоя с принудительной прогрузкой тайлов на любом отдалении
 function createTileLayer(layerName) {
   const cfg = mapData[currentMap] || { w: 7500, h: 4700 };
   const bounds = [[0, 0], [cfg.h, cfg.w]];
@@ -142,14 +155,19 @@ function createTileLayer(layerName) {
     noWrap: true,
     bounds: bounds,
     layerName: layerName,
-    // ИСПРАВЛЕНИЕ 2: Оптимизация памяти (грузить только то, что на экране)
-    keepBuffer: 1,        // Хранить в памяти только 1 запасную строку тайлов за экраном
-    updateWhenIdle: false // Грузить тайлы сразу на лету во время движения
+
+    // ЖЕСТКАЯ ПРИВЯЗКА К ТАЙЛАМ 512:
+    minZoom: -5,        // Разрешаем отображение на любом сильном отдалении
+    minNativeZoom: 0,   // Брать тайлы из исходной нарезки...
+    maxNativeZoom: 0,   // ...и масштабировать их под текущий зум экрана
+    
+    keepBuffer: 2,       // Подгружать тайлы за краем экрана для плавного скролла
+    updateWhenIdle: false // Загружать тайлы моментально на лету
   });
 }
 
+// Очистка и полная пересборка всех слоев карты
 function buildMap() {
-  // Очищаем прошлые слои
   Object.values(layerObjects).forEach(l => map.removeLayer(l));
   layerObjects = {};
 
@@ -157,18 +175,19 @@ function buildMap() {
   const activeLayers = cfg.layers || [];
   const bounds = [[0, 0], [cfg.h, cfg.w]];
 
-  // Загружаем тайлы
+  // Подключение всех слоев, принадлежащих текущей карте
   activeLayers.forEach(lName => {
     const tileLayer = createTileLayer(lName);
     layerObjects[lName] = tileLayer;
     tileLayer.addTo(map);
   });
 
-  // Автоматический фокус на всю карту при входе (без нужды зумить вручную)
+  // Автоматический подгон камеры под границы карты при открытии
   map.fitBounds(bounds);
   renderLayersUI();
 }
 
+// Генерация кнопок вкл/выкл слоев на интерфейсе
 function renderLayersUI() {
   const box = document.getElementById("layers");
   box.innerHTML = "";
@@ -199,6 +218,7 @@ function renderLayersUI() {
   });
 }
 
+// Настройка выпадающего списка карт
 function setupMenus() {
   const mapMenu = document.getElementById("mapMenu");
   mapMenu.innerHTML = "";
@@ -213,6 +233,7 @@ function setupMenus() {
   selectMap(currentMap);
 }
 
+// Выбор конкретной карты
 function selectMap(mapName) {
   currentMap = mapName;
   document.getElementById("mapBtn").textContent = mapName;
@@ -233,16 +254,17 @@ function selectMap(mapName) {
   }
 }
 
+// Выбор даты и запуск отрисовки
 function selectDate(dateStr) {
   currentDate = dateStr;
   document.getElementById("dateBtn").textContent = dateStr;
   buildMap();
 }
 
-// Запуск
+// Первоначальный запуск инициализации
 setupMenus();
 
-/* Взаимодействие с UI */
+// Обработчики открытия/закрытия выпадающих списков
 const mapBtn = document.getElementById("mapBtn");
 const mapSelect = document.getElementById("mapSelect");
 mapBtn.onclick = () => mapSelect.classList.toggle("open");
@@ -251,12 +273,14 @@ const dateBtn = document.getElementById("dateBtn");
 const dateSelect = document.getElementById("dateSelect");
 dateBtn.onclick = () => dateSelect.classList.toggle("open");
 
+// Обработчик переключения светлой/темной темы
 document.getElementById("themeBtn").onclick = () => {
   const m = document.getElementById("map");
   m.classList.toggle("dark-theme");
   m.classList.toggle("light-theme");
 };
 
+// Закрытие меню при клике в любую внешнюю область
 window.addEventListener("click", e => {
   if (!e.target.closest(".dropdown")) {
     document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
