@@ -42,13 +42,23 @@
       padding: 6px 10px; border-radius: 6px; cursor: pointer;
     }
 
-    /* Панель слоев внизу справа */
-    .layers-panel {
+    /* Мобильный контейнер и панель слоев внизу справа */
+    .layers-container {
       position: fixed; bottom: 10px; right: 10px;
-      background: rgba(255,255,255,0.95); padding: 8px;
-      border-radius: 6px; z-index: 5000; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-      max-height: 400px; overflow-y: auto;
+      display: flex; flex-direction: column; align-items: flex-end;
+      z-index: 5000;
     }
+    .toggle-layers-btn {
+      background: rgba(255,255,255,0.95); border: 1px solid #ccc;
+      padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15); margin-top: 6px;
+    }
+    .layers-panel {
+      background: rgba(255,255,255,0.95); padding: 8px;
+      border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      max-height: 350px; overflow-y: auto; min-width: 160px;
+    }
+    .layers-panel.collapsed { display: none; }
     .layer-btn {
       display: block; width: 100%; margin: 4px 0; padding: 6px 12px;
       border: 1px solid #ccc; border-radius: 4px; background: white;
@@ -82,16 +92,40 @@
   <button class="control-btn" id="themeBtn">theme</button>
 </div>
 
-<!-- Панель управления слоями -->
-<div class="layers-panel" id="layers"></div>
+<!-- Мобильная панель управления слоями -->
+<div class="layers-container">
+  <div class="layers-panel" id="layers"></div>
+  <button class="toggle-layers-btn" id="toggleLayersBtn">⚙ Слои</button>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 
 /* =========================================================================
-   1. КОНФИГУРАЦИЯ КАРТ, ДАТ И ПРОЗРАЧНОСТИ СЛОЕВ
+   1. СТРОГАЯ ИЕРАРХИЯ СЛОЕВ, НАСТРОЙКИ ПРОЗРАЧНОСТИ И КАРТ
 ========================================================================= */
+
+// Строгий порядок наложения и отображения (сверху вниз)
+const LAYER_ORDER = [
+  "photo",
+  "countriesnames",
+  "citiesnames",
+  "layer13",
+  "strategy",
+  "army",
+  "googlemaps",
+  "infrastructure",
+  "background"
+];
+
+// Настройки видимости: 0.1 соответствует 90% прозрачности
+const LAYER_OPACITY = {
+  'googlemaps': 0.35,
+  'countriesnames': 0.1,
+  'citiesnames': 0.1
+};
+
 const mapData = {
   world: {
     w: 15000, h: 10000,
@@ -137,11 +171,6 @@ const mapData = {
   }
 };
 
-// Прозрачность слоев по умолчанию (1.0 = непроизрачный, 0.35 = 35% видимости)
-const LAYER_OPACITY = {
-  'googlemaps': 0.35
-};
-
 /* =========================================================================
    2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ИНИЦИАЛИЗАЦИЯ
 ========================================================================= */
@@ -165,7 +194,7 @@ let map = L.map("map", {
 });
 
 /* =========================================================================
-   3. КАСТОМНЫЙ ЗАГРУЗЧИК ТАЙЛОВ
+   3. КАСТОМНЫЙ ЗАГРУЗЧИК С ОПТИМИЗАЦИЕЙ ПАМЯТИ И Z-INDEX
 ========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
@@ -200,38 +229,51 @@ function createTileLayer(layerName) {
   const bounds = [[0, 0], [dims.h, dims.w]];
   const opacityVal = (LAYER_OPACITY[layerName] !== undefined) ? LAYER_OPACITY[layerName] : 1.0;
 
+  // Рассчитываем zIndex: чем выше слой в LAYER_ORDER, тем выше его zIndex
+  const orderIndex = LAYER_ORDER.indexOf(layerName);
+  const zIndexVal = orderIndex !== -1 ? (LAYER_ORDER.length - orderIndex) * 10 : 10;
+
   return new L.CustomGridLayer('', {
     tileSize: 512,
     noWrap: true,
     bounds: bounds,
     layerName: layerName,
-    opacity: opacityVal, // Задаем 35% прозрачность для googlemaps
+    opacity: opacityVal,
+    zIndex: zIndexVal,
 
     minZoom: -5,
     minNativeZoom: 0,
     maxNativeZoom: 0,
     
-    keepBuffer: 2,
+    // ОПТИМИЗАЦИЯ: Не загружать невидимые тайлы и мгновенно выгружать их
+    keepBuffer: 0,
+    unloadInvisibleTiles: true,
     updateWhenIdle: false
   });
 }
 
 /* =========================================================================
-   4. ПОСТРОЕНИЕ КАРТЫ (ТОЛЬКО BACKGROUND ВКЛЮЧЕН ПО УМОЛЧАНИЮ)
+   4. ПОСТРОЕНИЕ КАРТЫ И РЕНДЕР ИНТЕРФЕЙСА СЛОЕВ
 ========================================================================= */
 function buildMap() {
-  Object.values(layerObjects).forEach(l => map.removeLayer(l));
+  // Принудительно отключаем и удаляем слои прошлой карты из памяти
+  Object.values(layerObjects).forEach(l => {
+    if (map.hasLayer(l)) {
+      map.removeLayer(l);
+    }
+  });
   layerObjects = {};
 
   const dims = getMapDimensions();
   const activeLayers = mapData[currentMap].layers || [];
   const bounds = [[0, 0], [dims.h, dims.w]];
 
+  // Создаем слои
   activeLayers.forEach(lName => {
     const tileLayer = createTileLayer(lName);
     layerObjects[lName] = tileLayer;
 
-    // Включаем на карте ТОЛЬКО слой background по умолчанию!
+    // По умолчанию включен ТОЛЬКО background
     if (lName === "background") {
       tileLayer.addTo(map);
     }
@@ -245,7 +287,17 @@ function renderLayersUI() {
   const box = document.getElementById("layers");
   box.innerHTML = "";
 
-  Object.entries(layerObjects).forEach(([name, layer]) => {
+  // Сортируем отображение кнопок строго по списку LAYER_ORDER
+  const sortedNames = Object.keys(layerObjects).sort((a, b) => {
+    let idxA = LAYER_ORDER.indexOf(a);
+    let idxB = LAYER_ORDER.indexOf(b);
+    if (idxA === -1) idxA = 99;
+    if (idxB === -1) idxB = 99;
+    return idxA - idxB;
+  });
+
+  sortedNames.forEach(name => {
+    const layer = layerObjects[name];
     const btn = document.createElement("button");
     btn.className = "layer-btn";
     btn.textContent = name;
@@ -322,7 +374,9 @@ function selectDate(dateStr) {
 // Запуск приложения
 setupMenus();
 
-/* Взаимодействие с UI */
+/* =========================================================================
+   5. ОБРАБОТКА ИНТЕРФЕЙСА И МОБИЛЬНОЙ КНОПКИ
+========================================================================= */
 const mapBtn = document.getElementById("mapBtn");
 const mapSelect = document.getElementById("mapSelect");
 mapBtn.onclick = () => mapSelect.classList.toggle("open");
@@ -335,6 +389,13 @@ document.getElementById("themeBtn").onclick = () => {
   const m = document.getElementById("map");
   m.classList.toggle("dark-theme");
   m.classList.toggle("light-theme");
+};
+
+// Переключение видимости панели слоев по кнопке
+const toggleLayersBtn = document.getElementById("toggleLayersBtn");
+const layersPanel = document.getElementById("layers");
+toggleLayersBtn.onclick = () => {
+  layersPanel.classList.toggle("collapsed");
 };
 
 window.addEventListener("click", e => {
