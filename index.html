@@ -90,14 +90,13 @@
 <script>
 
 /* =========================================================================
-   1. КОНФИГУРАЦИЯ КАРТ, ДАТ И СЛОЕВ
+   1. КОНФИГУРАЦИЯ КАРТ, ДАТ И ПРОЗРАЧНОСТИ СЛОЕВ
 ========================================================================= */
 const mapData = {
   world: {
     w: 15000, h: 10000,
-    dates: ["2026-06-04", "2026-09-15-12-00"], // Формат даты с часами/минутами: ГГГГ-ММ-ДД-ЧЧ-ММ
+    dates: ["2026-06-04", "2026-09-15-12-00"],
     layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames", "army", "strategy", "layer13", "photo"],
-    // Слои, которые берутся из корня карты БЕЗ даты (например: images/world/googlemaps/tiles/512/{x}/{y}.webp)
     globalLayers: ["googlemaps", "infrastructure", "layer13", "photo"]
   },
   kiraine: {
@@ -113,19 +112,19 @@ const mapData = {
     globalLayers: ["googlemaps"]
   },
   cuba: {
-    w: 0, h: 0, // Размеры укажете позже
+    w: 0, h: 0,
     dates: ["2026-01-01"],
     layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   kharkiv: {
-    w: 0, h: 0, // Размеры укажете позже
+    w: 0, h: 0,
     dates: ["2026-01-01"],
     layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   kiyav: {
-    w: 0, h: 0, // Размеры укажете позже
+    w: 0, h: 0,
     dates: ["2026-01-01"],
     layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
@@ -138,14 +137,18 @@ const mapData = {
   }
 };
 
+// Прозрачность слоев по умолчанию (1.0 = непроизрачный, 0.35 = 35% видимости)
+const LAYER_OPACITY = {
+  'googlemaps': 0.35
+};
+
 /* =========================================================================
    2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ИНИЦИАЛИЗАЦИЯ
 ========================================================================= */
-let currentMap = "world"; // По умолчанию грузится карта "world"
+let currentMap = "world";
 let currentDate = "";
 let layerObjects = {};
 
-// Безопасное получение размеров карты (с фоллбеком если w/h поставлены в 0)
 function getMapDimensions() {
   const cfg = mapData[currentMap];
   const width = (cfg && cfg.w > 0) ? cfg.w : 15000;
@@ -153,7 +156,6 @@ function getMapDimensions() {
   return { w: width, h: height };
 }
 
-// Настройка карты Leaflet
 let map = L.map("map", {
   crs: L.CRS.Simple,
   minZoom: -5,
@@ -163,7 +165,7 @@ let map = L.map("map", {
 });
 
 /* =========================================================================
-   3. КАСТОМНЫЙ ЗАГРУЗЧИК ТАЙЛОВ С ПОДДЕРЖКОЙ ГЛОБАЛЬНЫХ СЛОЕВ
+   3. КАСТОМНЫЙ ЗАГРУЗЧИК ТАЙЛОВ
 ========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
@@ -178,14 +180,11 @@ L.CustomGridLayer = L.TileLayer.extend({
     const correctedY = totalRows - 1 - Math.abs(coords.y);
     const cleanX = Math.abs(coords.x);
 
-    // ПРОВЕРКА: Если слой входит в список globalLayers, формируем путь БЕЗ даты
     const isGlobal = mapConfig.globalLayers && mapConfig.globalLayers.includes(layerName);
 
     if (isGlobal) {
-      // Путь без даты: images/world/googlemaps/tiles/512/x/y.webp
       tile.src = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
     } else {
-      // Путь с датой: images/world/2026-09-15/background/tiles/512/x/y.webp
       tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
     }
 
@@ -199,12 +198,14 @@ L.CustomGridLayer = L.TileLayer.extend({
 function createTileLayer(layerName) {
   const dims = getMapDimensions();
   const bounds = [[0, 0], [dims.h, dims.w]];
+  const opacityVal = (LAYER_OPACITY[layerName] !== undefined) ? LAYER_OPACITY[layerName] : 1.0;
 
   return new L.CustomGridLayer('', {
     tileSize: 512,
     noWrap: true,
     bounds: bounds,
     layerName: layerName,
+    opacity: opacityVal, // Задаем 35% прозрачность для googlemaps
 
     minZoom: -5,
     minNativeZoom: 0,
@@ -216,7 +217,7 @@ function createTileLayer(layerName) {
 }
 
 /* =========================================================================
-   4. ПОСТРОЕНИЕ КАРТЫ И ИНТЕРФЕЙСА
+   4. ПОСТРОЕНИЕ КАРТЫ (ТОЛЬКО BACKGROUND ВКЛЮЧЕН ПО УМОЛЧАНИЮ)
 ========================================================================= */
 function buildMap() {
   Object.values(layerObjects).forEach(l => map.removeLayer(l));
@@ -229,7 +230,11 @@ function buildMap() {
   activeLayers.forEach(lName => {
     const tileLayer = createTileLayer(lName);
     layerObjects[lName] = tileLayer;
-    tileLayer.addTo(map);
+
+    // Включаем на карте ТОЛЬКО слой background по умолчанию!
+    if (lName === "background") {
+      tileLayer.addTo(map);
+    }
   });
 
   map.fitBounds(bounds);
@@ -266,7 +271,6 @@ function renderLayersUI() {
   });
 }
 
-// Форматирование даты для выпадающего меню (превращает "2026-09-15-12-00" в "2026-09-15 (12:00)")
 function formatDisplayDate(dateStr) {
   const parts = dateStr.split('-');
   if (parts.length === 5) {
@@ -305,7 +309,6 @@ function selectMap(mapName) {
   });
 
   if (dates.length > 0) {
-    // Выбираем самую ПОСЛЕДНЮЮ дату из массива этой карты
     selectDate(dates[dates.length - 1]);
   }
 }
