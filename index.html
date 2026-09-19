@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>map system</title>
 
-  <!-- Подключаем Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
@@ -16,7 +15,6 @@
       width: 100%;
     }
 
-    /* Верхнее меню выбора карты и даты */
     .top-bar {
       position: fixed;
       top: 10px;
@@ -63,7 +61,6 @@
 
     .dropdown.open .menu { display: block; }
 
-    /* Переключатель темы */
     .control-panel {
       position: fixed;
       top: 10px;
@@ -79,7 +76,6 @@
       cursor: pointer;
     }
 
-    /* Панель выбора слоев внизу */
     .layers-panel {
       position: fixed;
       bottom: 10px;
@@ -113,13 +109,11 @@
 <div id="map" class="dark-theme"></div>
 
 <div class="top-bar">
-  <!-- Выбор типа карты -->
   <div class="dropdown" id="mapSelect">
     <button class="drop-btn" id="mapBtn">Загрузка...</button>
     <div class="menu" id="mapMenu"></div>
   </div>
 
-  <!-- Выбор даты -->
   <div class="dropdown" id="dateSelect">
     <button class="drop-btn" id="dateBtn">Загрузка...</button>
     <div class="menu" id="dateMenu"></div>
@@ -130,17 +124,12 @@
   <button class="control-btn" id="themeBtn">theme</button>
 </div>
 
-<!-- Панель со слоями -->
 <div class="layers-panel" id="layers"></div>
 
-<!-- Подключаем Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 
-/* ==========================================
-   КОНФИГУРАЦИЯ РАЗМЕРОВ КАРТ (Ширина, Высота)
-========================================== */
 const mapConfig = {
   world:   { w: 15000, h: 10000 },
   kiraine: { w: 7500,  h: 4700  },
@@ -148,36 +137,11 @@ const mapConfig = {
   altworld:{ w: 15000, h: 10000 }
 };
 
-let currentMap = "altworld";
+let currentMap = "kiraine";
 let currentDate = "";
 let manifestData = null;
 let layerObjects = {};
 
-/* ==========================================
-   ПРИОРИТЕТЫ И ПРОЗРАЧНОСТЬ СЛОЕВ
-========================================== */
-const LAYER_Z_INDEX = {
-  'realworld': 1,
-  'real_world': 1,
-  'fiction': 2,
-  'infrastructure': 3,
-  'infra': 3,
-  'city_names': 4,
-  'cities': 4,
-  'country_names': 5,
-  'countries': 5
-};
-
-const LAYER_OPACITY = {
-  'realworld': 0.3,
-  'real_world': 0.3,
-  'city_names': 0.8,
-  'cities': 0.8,
-  'country_names': 0.8,
-  'countries': 0.8
-};
-
-// Инициализируем Leaflet в плоских координатах (CRS.Simple)
 let map = L.map("map", {
   crs: L.CRS.Simple,
   minZoom: -3,
@@ -190,40 +154,45 @@ function getBounds() {
   return [[0, 0], [cfg.h, cfg.w]];
 }
 
-/* ==========================================
-   СОЗДАНИЕ ПЛИТОЧНОГО СЛОЯ (ВАШ ПУТЬ)
-========================================== */
+// Кастомный класс для точной загрузки плоской сетки тайлов {x}/{y}.webp
+L.CustomGridLayer = L.TileLayer.extend({
+  createTile: function(coords, done) {
+    const tile = document.createElement('img');
+    tile.alt = '';
+
+    // Подставляем прямые координаты без переворота Y
+    const layerName = this.options.layerName;
+    tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${coords.x}/${coords.y}.webp`;
+
+    L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
+    L.DomEvent.on(tile, 'error', L.Util.bind(this._tileOnError, this, done, tile));
+
+    return tile;
+  }
+});
+
 function createTileLayer(layerName) {
   const bounds = getBounds();
-  
-  // Прямой путь без лишней папки /0/
-  const tileUrl = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/{x}/{y}.webp`;
 
-  return L.tileLayer(tileUrl, {
+  return new L.CustomGridLayer('', {
     tileSize: 512,
     noWrap: true,
     bounds: bounds,
-    opacity: LAYER_OPACITY[layerName] || 1.0,
-    zIndex: LAYER_Z_INDEX[layerName] || 10
+    layerName: layerName
   });
 }
 
-function buildMap() {
-  // Очищаем старые слои
+function buildMap(availableLayers) {
   Object.values(layerObjects).forEach(l => map.removeLayer(l));
   layerObjects = {};
 
   const bounds = getBounds();
   map.setMaxBounds(bounds);
 
-  // Известный список слоев (подстройте или расширьте имена под слои из вашeго .pdn)
-  const knownLayers = ['realworld', 'real_world', 'fiction', 'infrastructure', 'infra', 'city_names', 'cities', 'country_names', 'countries'];
-
-  knownLayers.forEach(lName => {
+  // Используем ТОЛЬКО те слои, которые реально есть в этой дате
+  availableLayers.forEach(lName => {
     const tileLayer = createTileLayer(lName);
     layerObjects[lName] = tileLayer;
-    
-    // Включаем слой на карте по умолчанию
     tileLayer.addTo(map);
   });
 
@@ -261,9 +230,7 @@ function renderLayersUI() {
   });
 }
 
-/* ==========================================
-   АВТОМАГИЯ: ЧТЕНИЕ MANIFEST.JSON
-========================================== */
+/* ЧТЕНИЕ MANIFEST.JSON */
 fetch('./manifest.json')
   .then(res => res.json())
   .then(data => {
@@ -271,8 +238,8 @@ fetch('./manifest.json')
     setupMenus();
   })
   .catch(err => {
-    console.error("Файл manifest.json не найден или пуст:", err);
-    document.getElementById("mapBtn").textContent = "Нет manifest.json";
+    console.error("Файл manifest.json не найден:", err);
+    document.getElementById("mapBtn").textContent = "Ошибка manifest.json";
   });
 
 function setupMenus() {
@@ -280,7 +247,6 @@ function setupMenus() {
   mapMenu.innerHTML = "";
 
   const availableMaps = Object.keys(manifestData.maps);
-  
   if (availableMaps.length === 0) return;
 
   availableMaps.forEach(mapName => {
@@ -290,7 +256,6 @@ function setupMenus() {
     mapMenu.appendChild(btn);
   });
 
-  // Выбираем первую карту из списка
   selectMap(availableMaps[0]);
 }
 
@@ -310,7 +275,6 @@ function selectMap(mapName) {
   });
 
   if (dates.length > 0) {
-    // Берем последнюю доступную дату
     selectDate(dates[dates.length - 1]);
   }
 }
@@ -318,12 +282,25 @@ function selectMap(mapName) {
 function selectDate(dateStr) {
   currentDate = dateStr;
   document.getElementById("dateBtn").textContent = dateStr;
-  buildMap();
+
+  // Безопасно получаем список слоев для этой даты из манифеста
+  const mapData = manifestData.maps[currentMap];
+  let layers = [];
+
+  if (Array.isArray(mapData.dates)) {
+    // Старая структура
+    layers = ['realworld', 'fiction', 'infra', 'cities', 'countries'];
+  } else if (mapData.dates[dateStr] && mapData.dates[dateStr].layers) {
+    // Новая структура с точными слоями
+    layers = mapData.dates[dateStr].layers;
+  } else {
+    layers = ['realworld', 'fiction', 'infra', 'cities', 'countries'];
+  }
+
+  buildMap(layers);
 }
 
-/* ==========================================
-   ВЗАИМОДЕЙСТВИЕ С UI (ДРОПДАУНЫ И ТЕМА)
-========================================== */
+/* UI ВЗАИМОДЕЙСТВИЕ */
 const mapBtn = document.getElementById("mapBtn");
 const mapSelect = document.getElementById("mapSelect");
 mapBtn.onclick = () => mapSelect.classList.toggle("open");
