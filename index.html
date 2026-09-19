@@ -1,266 +1,318 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>карта</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    html, body { margin: 0; padding: 0; height: 100%; }
-    #map { height: 100vh; width: 100%; }
+  <title>map system</title>
 
-    /* Панель выбора карт и дат */
+  <!-- Подключение стилей карты Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    html, body { margin:0; padding:0; height:100%; }
+
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+
+    /* Верхнее меню переключения карт и дат */
     .top-bar {
-      position: fixed; top: 10px; left: 10px; display: flex; gap: 8px; z-index: 2000;
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      gap: 8px;
+      z-index: 5000;
     }
+
     .dropdown { position: relative; }
+
     .drop-btn {
-      background: rgba(255,255,255,0.9); border: 1px solid #ccc;
-      padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ccc;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
     }
+
     .menu {
-      position: absolute; top: 110%; left: 0; background: white;
-      border: 1px solid #ccc; border-radius: 6px; display: none; min-width: 140px;
+      position: absolute;
+      top: 110%;
+      left: 0;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      display: none;
+      min-width: 160px;
+      z-index: 6000;
       box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     }
+
     .menu button {
-      width: 100%; padding: 8px; border: none; background: white; cursor: pointer; text-align: left;
+      width: 100%;
+      padding: 8px;
+      border: none;
+      background: white;
+      cursor: pointer;
+      text-align: left;
     }
+
     .menu button:hover { background: #eee; }
+
     .dropdown.open .menu { display: block; }
 
-    /* Панель слоев и темы */
-    .control-panel { position: fixed; top: 10px; right: 10px; z-index: 2000; }
-    .control-btn {
-      background: rgba(255,255,255,0.9); border: 1px solid #ccc;
-      border-radius: 6px; padding: 6px; cursor: pointer;
+    /* Правая верхняя панель (переключатель темы) */
+    .control-panel {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 5000;
     }
-    .layers-panel {
-      position: fixed; bottom: 10px; right: 10px; display: flex; flex-direction: column;
-      gap: 6px; background: rgba(255, 255, 255, 0.95); padding: 8px; border-radius: 6px;
-      border: 1px solid #ccc; z-index: 2000;
-    }
-    .layer-btn {
-      padding: 6px 12px; cursor: pointer; border: 1px solid #999;
-      border-radius: 4px; background: #f0f0f0; text-align: left;
-    }
-    .layer-btn.active { background: #bbb; font-weight: bold; }
 
-    .dark-theme { background-color: #1e1e1e; }
-    .light-theme { background-color: #ffffff; }
+    .control-btn {
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ccc;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* Панель слоев внизу справа */
+    .layers-panel {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.95);
+      padding: 8px;
+      border-radius: 6px;
+      z-index: 5000;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    .layer-btn {
+      display: block;
+      width: 100%;
+      margin: 4px 0;
+      padding: 6px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .dark-theme { background:#1e1e1e; }
+    .light-theme { background:#fff; }
   </style>
 </head>
+
 <body>
 
 <div id="map" class="dark-theme"></div>
 
-<!-- Панель выбора карты и даты -->
+<!-- Верхняя панель -->
 <div class="top-bar">
   <div class="dropdown" id="mapSelect">
-    <button class="drop-btn" id="mapBtn">Загрузка...</button>
+    <button class="drop-btn" id="mapBtn">Карта</button>
     <div class="menu" id="mapMenu"></div>
   </div>
+
   <div class="dropdown" id="dateSelect">
-    <button class="drop-btn" id="dateBtn">Загрузка...</button>
+    <button class="drop-btn" id="dateBtn">Дата</button>
     <div class="menu" id="dateMenu"></div>
   </div>
 </div>
 
 <div class="control-panel">
-  <button class="control-btn" id="theme-btn" title="Сменить тему">🎨</button>
+  <button class="control-btn" id="themeBtn">theme</button>
 </div>
 
-<div class="layers-panel" id="layers-panel"></div>
+<div class="layers-panel" id="layers"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-  // Конфигурация размеров карт (Ширина x Высота)
-  const mapConfig = {
-    world:   { w: 15000, h: 10000 },
-    kiraine: { w: 7500,  h: 4700  },
-    america: { w: 12120, h: 12399 },
-    altworld:{ w: 15000, h: 10000 }
-  };
 
-  let currentMap = "kiraine";
-  let currentDate = "";
-  let manifestData = null;
-  let activeTileLayers = {};
+/* =========================================================
+   1. ЕДИНСТВЕННОЕ МЕСТО, КУДА ВЫ ДОБАВЛЯЕТЕ НОВЫЕ ДАТЫ И СЛОИ
+========================================================= */
+const mapData = {
+  // Название типа карты (должно совпадать с папкой в images/)
+  kiraine: {
+    w: 7500, h: 4700, // Размеры карты в пикселях
+    dates: ["2024-05-18"], // Список дат (самая свежая дата — ПОСЛЕДНЯЯ в списке)
+    layers: ["realworld", "fiction", "infra", "cities", "countries"] // Названия папок слоев
+  },
+  altworld: {
+    w: 15000, h: 10000,
+    dates: ["2026-09-15"],
+    layers: ["realworld", "fiction", "infra", "cities", "countries"]
+  },
+  world: {
+    w: 15000, h: 10000,
+    dates: ["2026-06-04"],
+    layers: ["realworld", "fiction", "infra", "cities", "countries"]
+  }
+};
 
-  // Настройка адаптивного зума из вашего старого кода
-  let minZoom = window.innerWidth < 768 ? -4 : -3;
-  let map = L.map('map', {
-    crs: L.CRS.Simple,
-    minZoom: minZoom,
-    maxZoom: 3,
-    attributionControl: false
+/* =========================================================
+   2. ЛОГИКА ОТОБРАЖЕНИЯ КАРТЫ И ТАЙЛОВ
+========================================================= */
+let currentMap = "kiraine"; // Карта по умолчанию при открытии сайта
+let currentDate = "";
+let layerObjects = {};
+
+// Инициализация Leaflet в плоской системе координат
+let map = L.map("map", {
+  crs: L.CRS.Simple,
+  minZoom: -3,
+  maxZoom: 3,
+  attributionControl: false
+});
+
+function getBounds() {
+  const cfg = mapData[currentMap] || { w: 15000, h: 10000 };
+  return [[0, 0], [cfg.h, cfg.w]];
+}
+
+// Прямое подключение тайлов из вашей структуры папок
+function createTileLayer(layerName) {
+  const bounds = getBounds();
+  
+  // Путь строго по вашей структуре: images/kiraine/2024-05-18/fiction/tiles/512/{x}/{y}.webp
+  const tileUrl = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/{x}/{y}.webp`;
+
+  return L.tileLayer(tileUrl, {
+    tileSize: 512,
+    noWrap: true,
+    bounds: bounds,
+    // Если картинка тайла не найдена, она просто прозрачная, а не ломает карту
+    errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+  });
+}
+
+function buildMap() {
+  // Очищаем старые слои
+  Object.values(layerObjects).forEach(l => map.removeLayer(l));
+  layerObjects = {};
+
+  const bounds = getBounds();
+  map.setMaxBounds(bounds);
+
+  const activeLayers = mapData[currentMap].layers || [];
+
+  // Загружаем каждый слой
+  activeLayers.forEach(lName => {
+    const tileLayer = createTileLayer(lName);
+    layerObjects[lName] = tileLayer;
+    tileLayer.addTo(map);
   });
 
-  function getBounds() {
-    const cfg = mapConfig[currentMap] || { w: 15000, h: 10000 };
-    return [[0, 0], [cfg.h, cfg.w]];
-  }
+  map.fitBounds(bounds);
+  renderLayersUI();
+}
 
-  // КАСТОМНЫЙ КЛАСС ТАЙЛОВ С ИСПРАВЛЕНИЕМ ОСИ Y
-  L.CustomTileLayer = L.TileLayer.extend({
-    createTile: function(coords, done) {
-      const tile = document.createElement('img');
-      tile.alt = '';
+function renderLayersUI() {
+  const box = document.getElementById("layers");
+  box.innerHTML = "";
 
-      const cfg = mapConfig[currentMap] || { w: 15000, h: 10000 };
-      const layerName = this.options.layerName;
-
-      // Считаем общее количество строк тайлов по высоте
-      const totalRows = Math.ceil(cfg.h / 512);
-      
-      // Переворачиваем Y, так как на диске 0 вверху, а в Leaflet 0 внизу
-      const correctedY = totalRows - 1 - coords.y;
-
-      // Формируем путь строго к тайлу на диске
-      tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${coords.x}/${correctedY}.webp`;
-
-      L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
-      L.DomEvent.on(tile, 'error', L.Util.bind(this._tileOnError, this, done, tile));
-
-      return tile;
-    }
-  });
-
-  // Построение карты и загрузка тайлов
-  function buildMap(layersList) {
-    // Удаляем старые слои
-    Object.values(activeTileLayers).forEach(l => map.removeLayer(l));
-    activeTileLayers = {};
-
-    const bounds = getBounds();
-    const mapBounds = [[-1000, -1000], [bounds[1][0] + 1000, bounds[1][1] + 1000]];
-
-    map.fitBounds(bounds);
-    map.setMaxBounds(mapBounds);
-
-    // Создаем слой для каждой найденной папки
-    layersList.forEach(layerName => {
-      const tLayer = new L.CustomTileLayer('', {
-        tileSize: 512,
-        noWrap: true,
-        bounds: bounds,
-        layerName: layerName
-      });
-
-      activeTileLayers[layerName] = tLayer;
-      tLayer.addTo(map); // Включаем по умолчанию
-    });
-
-    renderLayersPanel();
-  }
-
-  // Отрисовка кнопок слоев
-  function renderLayersPanel() {
-    const panel = document.getElementById('layers-panel');
-    panel.innerHTML = '';
-
-    Object.entries(activeTileLayers).forEach(([name, layer]) => {
-      let btn = document.createElement('button');
-      btn.className = 'layer-btn active';
-      btn.textContent = name;
-
-      btn.addEventListener('click', () => {
-        if (map.hasLayer(layer)) {
-          map.removeLayer(layer);
-          btn.classList.remove('active');
-        } else {
-          map.addLayer(layer);
-          btn.classList.add('active');
-        }
-      });
-
-      panel.appendChild(btn);
-    });
-  }
-
-  // Загрузка manifest.json
-  fetch('./manifest.json')
-    .then(res => res.json())
-    .then(data => {
-      manifestData = data;
-      initMenu();
-    })
-    .catch(err => {
-      console.error("Ошибка загрузки manifest.json:", err);
-    });
-
-  function initMenu() {
-    const mapMenu = document.getElementById('mapMenu');
-    mapMenu.innerHTML = '';
-
-    const maps = Object.keys(manifestData.maps);
-    if (maps.length === 0) return;
-
-    maps.forEach(mName => {
-      let btn = document.createElement('button');
-      btn.textContent = mName;
-      btn.onclick = () => selectMap(mName);
-      mapMenu.appendChild(btn);
-    });
-
-    selectMap(maps[0]);
-  }
-
-  function selectMap(mName) {
-    currentMap = mName;
-    document.getElementById('mapBtn').textContent = mName;
-
-    const dates = manifestData.maps[mName].dates;
-    const dateMenu = document.getElementById('dateMenu');
-    dateMenu.innerHTML = '';
-
-    dates.forEach(d => {
-      let btn = document.createElement('button');
-      btn.textContent = d;
-      btn.onclick = () => selectDate(d);
-      dateMenu.appendChild(btn);
-    });
-
-    if (dates.length > 0) {
-      selectDate(dates[dates.length - 1]);
-    }
-  }
-
-  function selectDate(dStr) {
-    currentDate = dStr;
-    document.getElementById('dateBtn').textContent = dStr;
-
-    // Автоматически получаем список слоев, если они есть в манифесте
-    const mapData = manifestData.maps[currentMap];
-    let layers = ['realworld', 'fiction', 'infra', 'cities', 'countries'];
+  Object.entries(layerObjects).forEach(([name, layer]) => {
+    const btn = document.createElement("button");
+    btn.className = "layer-btn";
+    btn.textContent = name;
     
-    if (mapData.dates[dStr] && mapData.dates[dStr].layers) {
-      layers = mapData.dates[dStr].layers;
+    if (map.hasLayer(layer)) {
+      btn.style.background = "#e0e0e0";
+      btn.style.fontWeight = "bold";
     }
 
-    buildMap(layers);
+    btn.onclick = () => {
+      if (map.hasLayer(layer)) {
+        map.removeLayer(layer);
+        btn.style.background = "white";
+        btn.style.fontWeight = "normal";
+      } else {
+        map.addLayer(layer);
+        btn.style.background = "#e0e0e0";
+        btn.style.fontWeight = "bold";
+      }
+    };
+
+    box.appendChild(btn);
+  });
+}
+
+/* =========================================================
+   3. УПРАВЛЕНИЕ МЕНЮ КАРТ И ДАТ
+========================================================= */
+function setupMenus() {
+  const mapMenu = document.getElementById("mapMenu");
+  mapMenu.innerHTML = "";
+
+  Object.keys(mapData).forEach(mapName => {
+    const btn = document.createElement("button");
+    btn.textContent = mapName;
+    btn.onclick = () => selectMap(mapName);
+    mapMenu.appendChild(btn);
+  });
+
+  // Открываем первую карту из списка
+  selectMap(currentMap);
+}
+
+function selectMap(mapName) {
+  currentMap = mapName;
+  document.getElementById("mapBtn").textContent = mapName;
+
+  const dates = mapData[mapName].dates;
+  const dateMenu = document.getElementById("dateMenu");
+  dateMenu.innerHTML = "";
+
+  dates.forEach(d => {
+    const btn = document.createElement("button");
+    btn.textContent = d;
+    btn.onclick = () => selectDate(d);
+    dateMenu.appendChild(btn);
+  });
+
+  if (dates.length > 0) {
+    // Автоматически берем самую ПОСЛЕДНЮЮ (самую свежую) дату из массива
+    selectDate(dates[dates.length - 1]);
   }
+}
 
-  // UI логика для переключателей меню и темы
-  document.getElementById('mapBtn').onclick = () => document.getElementById('mapSelect').classList.toggle('open');
-  document.getElementById('dateBtn').onclick = () => document.getElementById('dateSelect').classList.toggle('open');
+function selectDate(dateStr) {
+  currentDate = dateStr;
+  document.getElementById("dateBtn").textContent = dateStr;
+  buildMap();
+}
 
-  document.getElementById('theme-btn').onclick = () => {
-    const mapDiv = document.getElementById('map');
-    mapDiv.classList.toggle('light-theme');
-    mapDiv.classList.toggle('dark-theme');
-  };
+// Старт работы при загрузке страницы
+setupMenus();
 
-  window.addEventListener('click', e => {
-    if (!e.target.closest('.dropdown')) {
-      document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
-    }
-  });
+/* Взаимодействие с UI */
+const mapBtn = document.getElementById("mapBtn");
+const mapSelect = document.getElementById("mapSelect");
+mapBtn.onclick = () => mapSelect.classList.toggle("open");
 
-  window.addEventListener('resize', () => {
-    let newMinZoom = window.innerWidth < 768 ? -4 : -3;
-    map.setMinZoom(newMinZoom);
-  });
+const dateBtn = document.getElementById("dateBtn");
+const dateSelect = document.getElementById("dateSelect");
+dateBtn.onclick = () => dateSelect.classList.toggle("open");
+
+document.getElementById("themeBtn").onclick = () => {
+  const m = document.getElementById("map");
+  m.classList.toggle("dark-theme");
+  m.classList.toggle("light-theme");
+};
+
+window.addEventListener("click", e => {
+  if (!e.target.closest(".dropdown")) {
+    document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
+  }
+});
+
 </script>
 
 </body>
