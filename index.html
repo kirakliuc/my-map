@@ -1,374 +1,266 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>map system</title>
-
-  <!-- Подключение стилей карты Leaflet из CDN -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
+  <title>карта</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    /* Сброс внешних отступов и растягивание страницы на весь экран */
-    html, body { margin:0; padding:0; height:100%; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #map { height: 100vh; width: 100%; }
 
-    /* Блок карты занимает 100% высоты экрана и всю ширину */
-    #map {
-      height: 100vh;
-      width: 100%;
-    }
-
-    /* Верхняя панель с кнопками переключения карт и дат */
+    /* Панель выбора карт и дат */
     .top-bar {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      display: flex;
-      gap: 8px;
-      z-index: 5000;
+      position: fixed; top: 10px; left: 10px; display: flex; gap: 8px; z-index: 2000;
     }
-
-    /* Контейнер для выпадающих списков */
     .dropdown { position: relative; }
-
-    /* Внешний вид главных кнопок выпадающего меню */
     .drop-btn {
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #ccc;
-      padding: 6px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
+      background: rgba(255,255,255,0.9); border: 1px solid #ccc;
+      padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: bold;
     }
-
-    /* Скрытое по умолчанию выпадающее меню */
     .menu {
-      position: absolute;
-      top: 110%;
-      left: 0;
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      display: none;
-      min-width: 160px;
-      z-index: 6000;
+      position: absolute; top: 110%; left: 0; background: white;
+      border: 1px solid #ccc; border-radius: 6px; display: none; min-width: 140px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     }
-
-    /* Кнопки внутри выпадающего меню */
     .menu button {
-      width: 100%;
-      padding: 8px;
-      border: none;
-      background: white;
-      cursor: pointer;
-      text-align: left;
+      width: 100%; padding: 8px; border: none; background: white; cursor: pointer; text-align: left;
     }
-
-    /* Подсветка кнопки в меню при наведении мыши */
     .menu button:hover { background: #eee; }
-
-    /* Класс, который показывает меню при клике */
     .dropdown.open .menu { display: block; }
 
-    /* Верхний правый блок управления (тема) */
-    .control-panel {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      z-index: 5000;
-    }
-
-    /* Кнопка смены темы */
+    /* Панель слоев и темы */
+    .control-panel { position: fixed; top: 10px; right: 10px; z-index: 2000; }
     .control-btn {
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #ccc;
-      padding: 6px 10px;
-      border-radius: 6px;
-      cursor: pointer;
+      background: rgba(255,255,255,0.9); border: 1px solid #ccc;
+      border-radius: 6px; padding: 6px; cursor: pointer;
     }
-
-    /* Нижняя правая панель для переключения слоев */
     .layers-panel {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(255,255,255,0.95);
-      padding: 8px;
-      border-radius: 6px;
-      z-index: 5000;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      position: fixed; bottom: 10px; right: 10px; display: flex; flex-direction: column;
+      gap: 6px; background: rgba(255, 255, 255, 0.95); padding: 8px; border-radius: 6px;
+      border: 1px solid #ccc; z-index: 2000;
     }
-
-    /* Кнопки слоев */
     .layer-btn {
-      display: block;
-      width: 100%;
-      margin: 4px 0;
-      padding: 6px 12px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background: white;
-      cursor: pointer;
-      text-align: left;
+      padding: 6px 12px; cursor: pointer; border: 1px solid #999;
+      border-radius: 4px; background: #f0f0f0; text-align: left;
     }
+    .layer-btn.active { background: #bbb; font-weight: bold; }
 
-    /* Темная и светлая темы для фона карты */
-    .dark-theme { background:#1e1e1e; }
-    .light-theme { background:#fff; }
+    .dark-theme { background-color: #1e1e1e; }
+    .light-theme { background-color: #ffffff; }
   </style>
 </head>
-
 <body>
 
-<!-- Контейнер для отображения карты -->
 <div id="map" class="dark-theme"></div>
 
-<!-- Верхняя панель переключения карт и дат -->
+<!-- Панель выбора карты и даты -->
 <div class="top-bar">
   <div class="dropdown" id="mapSelect">
     <button class="drop-btn" id="mapBtn">Загрузка...</button>
     <div class="menu" id="mapMenu"></div>
   </div>
-
   <div class="dropdown" id="dateSelect">
     <button class="drop-btn" id="dateBtn">Загрузка...</button>
     <div class="menu" id="dateMenu"></div>
   </div>
 </div>
 
-<!-- Панель переключения темы -->
 <div class="control-panel">
-  <button class="control-btn" id="themeBtn">theme</button>
+  <button class="control-btn" id="theme-btn" title="Сменить тему">🎨</button>
 </div>
 
-<!-- Панель управления слоями -->
-<div class="layers-panel" id="layers"></div>
+<div class="layers-panel" id="layers-panel"></div>
 
-<!-- Подключение движка карт Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script>
+  // Конфигурация размеров карт (Ширина x Высота)
+  const mapConfig = {
+    world:   { w: 15000, h: 10000 },
+    kiraine: { w: 7500,  h: 4700  },
+    america: { w: 12120, h: 12399 },
+    altworld:{ w: 15000, h: 10000 }
+  };
 
-// Хранилище размеров (Ширина x Высота) в пикселях для разных типов карт
-const mapConfig = {
-  world:   { w: 15000, h: 10000 },
-  kiraine: { w: 7500,  h: 4700  },
-  america: { w: 12120, h: 12399 },
-  altworld:{ w: 15000, h: 10000 }
-};
+  let currentMap = "kiraine";
+  let currentDate = "";
+  let manifestData = null;
+  let activeTileLayers = {};
 
-// Глобальные переменные состояния текущей выбранной карты, даты и слоев
-let currentMap = "kiraine";
-let currentDate = "";
-let manifestData = null;
-let layerObjects = {};
+  // Настройка адаптивного зума из вашего старого кода
+  let minZoom = window.innerWidth < 768 ? -4 : -3;
+  let map = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom: minZoom,
+    maxZoom: 3,
+    attributionControl: false
+  });
 
-// Инициализация карты Leaflet в плоской системе координат (CRS.Simple)
-let map = L.map("map", {
-  crs: L.CRS.Simple,
-  minZoom: -3,
-  maxZoom: 3,
-  attributionControl: false
-});
-
-// Функция вычисления реальных прямоугольных границ текущей карты
-function getBounds() {
-  const cfg = mapConfig[currentMap] || { w: 15000, h: 10000 };
-  return [[0, 0], [cfg.h, cfg.w]];
-}
-
-// Кастомный класс Leaflet для загрузки локальных тайлов без искажения координат
-L.CustomGridLayer = L.TileLayer.extend({
-  createTile: function(coords, done) {
-    const tile = document.createElement('img');
-    tile.alt = '';
-
-    const layerName = this.options.layerName;
+  function getBounds() {
     const cfg = mapConfig[currentMap] || { w: 15000, h: 10000 };
-    
-    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Инверсия оси Y для соответствия расположению файлов на диске
-    const totalRows = Math.ceil(cfg.h / 512);
-    const correctedY = totalRows - 1 - coords.y;
-
-    // Сборка точного пути к файлу картинки webp
-    tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${coords.x}/${correctedY}.webp`;
-
-    // События успешной загрузки или ошибки чтения файла
-    L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
-    L.DomEvent.on(tile, 'error', L.Util.bind(this._tileOnError, this, done, tile));
-
-    return tile;
+    return [[0, 0], [cfg.h, cfg.w]];
   }
-});
 
-// Функция-фабрика для создания слоя тайлов
-function createTileLayer(layerName) {
-  const bounds = getBounds();
+  // КАСТОМНЫЙ КЛАСС ТАЙЛОВ С ИСПРАВЛЕНИЕМ ОСИ Y
+  L.CustomTileLayer = L.TileLayer.extend({
+    createTile: function(coords, done) {
+      const tile = document.createElement('img');
+      tile.alt = '';
 
-  return new L.CustomGridLayer('', {
-    tileSize: 512,
-    noWrap: true,
-    bounds: bounds,
-    layerName: layerName
-  });
-}
+      const cfg = mapConfig[currentMap] || { w: 15000, h: 10000 };
+      const layerName = this.options.layerName;
 
-// Пересборка карты при смене даты или типа карты
-function buildMap(availableLayers) {
-  // Удаление всех прошлых слоев с карты
-  Object.values(layerObjects).forEach(l => map.removeLayer(l));
-  layerObjects = {};
+      // Считаем общее количество строк тайлов по высоте
+      const totalRows = Math.ceil(cfg.h / 512);
+      
+      // Переворачиваем Y, так как на диске 0 вверху, а в Leaflet 0 внизу
+      const correctedY = totalRows - 1 - coords.y;
 
-  const bounds = getBounds();
-  
-  // Ограничение области прокрутки границами карты
-  map.setMaxBounds(bounds);
+      // Формируем путь строго к тайлу на диске
+      tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${coords.x}/${correctedY}.webp`;
 
-  // Создание и добавление каждого слоя на карту
-  availableLayers.forEach(lName => {
-    const tileLayer = createTileLayer(lName);
-    layerObjects[lName] = tileLayer;
-    tileLayer.addTo(map);
+      L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
+      L.DomEvent.on(tile, 'error', L.Util.bind(this._tileOnError, this, done, tile));
+
+      return tile;
+    }
   });
 
-  // Автоматическая подгонка зума под границы карты
-  map.fitBounds(bounds);
-  
+  // Построение карты и загрузка тайлов
+  function buildMap(layersList) {
+    // Удаляем старые слои
+    Object.values(activeTileLayers).forEach(l => map.removeLayer(l));
+    activeTileLayers = {};
+
+    const bounds = getBounds();
+    const mapBounds = [[-1000, -1000], [bounds[1][0] + 1000, bounds[1][1] + 1000]];
+
+    map.fitBounds(bounds);
+    map.setMaxBounds(mapBounds);
+
+    // Создаем слой для каждой найденной папки
+    layersList.forEach(layerName => {
+      const tLayer = new L.CustomTileLayer('', {
+        tileSize: 512,
+        noWrap: true,
+        bounds: bounds,
+        layerName: layerName
+      });
+
+      activeTileLayers[layerName] = tLayer;
+      tLayer.addTo(map); // Включаем по умолчанию
+    });
+
+    renderLayersPanel();
+  }
+
   // Отрисовка кнопок слоев
-  renderLayersUI();
-}
+  function renderLayersPanel() {
+    const panel = document.getElementById('layers-panel');
+    panel.innerHTML = '';
 
-// Генерация кнопок включения/выключения слоев внизу справа
-function renderLayersUI() {
-  const box = document.getElementById("layers");
-  box.innerHTML = "";
+    Object.entries(activeTileLayers).forEach(([name, layer]) => {
+      let btn = document.createElement('button');
+      btn.className = 'layer-btn active';
+      btn.textContent = name;
 
-  Object.entries(layerObjects).forEach(([name, layer]) => {
-    const btn = document.createElement("button");
-    btn.className = "layer-btn";
-    btn.textContent = name;
+      btn.addEventListener('click', () => {
+        if (map.hasLayer(layer)) {
+          map.removeLayer(layer);
+          btn.classList.remove('active');
+        } else {
+          map.addLayer(layer);
+          btn.classList.add('active');
+        }
+      });
+
+      panel.appendChild(btn);
+    });
+  }
+
+  // Загрузка manifest.json
+  fetch('./manifest.json')
+    .then(res => res.json())
+    .then(data => {
+      manifestData = data;
+      initMenu();
+    })
+    .catch(err => {
+      console.error("Ошибка загрузки manifest.json:", err);
+    });
+
+  function initMenu() {
+    const mapMenu = document.getElementById('mapMenu');
+    mapMenu.innerHTML = '';
+
+    const maps = Object.keys(manifestData.maps);
+    if (maps.length === 0) return;
+
+    maps.forEach(mName => {
+      let btn = document.createElement('button');
+      btn.textContent = mName;
+      btn.onclick = () => selectMap(mName);
+      mapMenu.appendChild(btn);
+    });
+
+    selectMap(maps[0]);
+  }
+
+  function selectMap(mName) {
+    currentMap = mName;
+    document.getElementById('mapBtn').textContent = mName;
+
+    const dates = manifestData.maps[mName].dates;
+    const dateMenu = document.getElementById('dateMenu');
+    dateMenu.innerHTML = '';
+
+    dates.forEach(d => {
+      let btn = document.createElement('button');
+      btn.textContent = d;
+      btn.onclick = () => selectDate(d);
+      dateMenu.appendChild(btn);
+    });
+
+    if (dates.length > 0) {
+      selectDate(dates[dates.length - 1]);
+    }
+  }
+
+  function selectDate(dStr) {
+    currentDate = dStr;
+    document.getElementById('dateBtn').textContent = dStr;
+
+    // Автоматически получаем список слоев, если они есть в манифесте
+    const mapData = manifestData.maps[currentMap];
+    let layers = ['realworld', 'fiction', 'infra', 'cities', 'countries'];
     
-    // Визуальное выделение активных слоев
-    if (map.hasLayer(layer)) {
-      btn.style.background = "#e0e0e0";
-      btn.style.fontWeight = "bold";
+    if (mapData.dates[dStr] && mapData.dates[dStr].layers) {
+      layers = mapData.dates[dStr].layers;
     }
 
-    // Обработка клика по кнопке слоя
-    btn.onclick = () => {
-      if (map.hasLayer(layer)) {
-        map.removeLayer(layer);
-        btn.style.background = "white";
-        btn.style.fontWeight = "normal";
-      } else {
-        map.addLayer(layer);
-        btn.style.background = "#e0e0e0";
-        btn.style.fontWeight = "bold";
-      }
-    };
-
-    box.appendChild(btn);
-  });
-}
-
-// Загрузка файла manifest.json с сервера GitHub
-fetch('./manifest.json')
-  .then(res => res.json())
-  .then(data => {
-    manifestData = data;
-    setupMenus();
-  })
-  .catch(err => {
-    console.error("Файл manifest.json не найден:", err);
-    document.getElementById("mapBtn").textContent = "Ошибка manifest.json";
-  });
-
-// Построение списка доступных карт в верхнем меню
-function setupMenus() {
-  const mapMenu = document.getElementById("mapMenu");
-  mapMenu.innerHTML = "";
-
-  const availableMaps = Object.keys(manifestData.maps);
-  if (availableMaps.length === 0) return;
-
-  availableMaps.forEach(mapName => {
-    const btn = document.createElement("button");
-    btn.textContent = mapName;
-    btn.onclick = () => selectMap(mapName);
-    mapMenu.appendChild(btn);
-  });
-
-  // Выбор первой карты по умолчанию
-  selectMap(availableMaps[0]);
-}
-
-// Функция переключения текущей карты
-function selectMap(mapName) {
-  currentMap = mapName;
-  document.getElementById("mapBtn").textContent = mapName;
-
-  const dates = manifestData.maps[mapName].dates;
-  const dateMenu = document.getElementById("dateMenu");
-  dateMenu.innerHTML = "";
-
-  // Формирование списка дат для выбранной карты
-  dates.forEach(d => {
-    const btn = document.createElement("button");
-    btn.textContent = d;
-    btn.onclick = () => selectDate(d);
-    dateMenu.appendChild(btn);
-  });
-
-  if (dates.length > 0) {
-    selectDate(dates[dates.length - 1]);
-  }
-}
-
-// Функция переключения текущей даты
-function selectDate(dateStr) {
-  currentDate = dateStr;
-  document.getElementById("dateBtn").textContent = dateStr;
-
-  const mapData = manifestData.maps[currentMap];
-  let layers = [];
-
-  // Извлечение слоев из файла manifest.json
-  if (Array.isArray(mapData.dates)) {
-    layers = ['realworld', 'fiction', 'infra', 'cities', 'countries'];
-  } else if (mapData.dates[dateStr] && mapData.dates[dateStr].layers) {
-    layers = mapData.dates[dateStr].layers;
-  } else {
-    layers = ['realworld', 'fiction', 'infra', 'cities', 'countries'];
+    buildMap(layers);
   }
 
-  // Запуск пересборки карты с точным списком слоев
-  buildMap(layers);
-}
+  // UI логика для переключателей меню и темы
+  document.getElementById('mapBtn').onclick = () => document.getElementById('mapSelect').classList.toggle('open');
+  document.getElementById('dateBtn').onclick = () => document.getElementById('dateSelect').classList.toggle('open');
 
-// Слушатели кликов для открывания и закрывания выпадающих меню
-const mapBtn = document.getElementById("mapBtn");
-const mapSelect = document.getElementById("mapSelect");
-mapBtn.onclick = () => mapSelect.classList.toggle("open");
+  document.getElementById('theme-btn').onclick = () => {
+    const mapDiv = document.getElementById('map');
+    mapDiv.classList.toggle('light-theme');
+    mapDiv.classList.toggle('dark-theme');
+  };
 
-const dateBtn = document.getElementById("dateBtn");
-const dateSelect = document.getElementById("dateSelect");
-dateBtn.onclick = () => dateSelect.classList.toggle("open");
+  window.addEventListener('click', e => {
+    if (!e.target.closest('.dropdown')) {
+      document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('open'));
+    }
+  });
 
-// Слушатель клика для переключения темы (светлая/темная)
-document.getElementById("themeBtn").onclick = () => {
-  const m = document.getElementById("map");
-  m.classList.toggle("dark-theme");
-  m.classList.toggle("light-theme");
-};
-
-// Закрытие выпадающих меню при клике в любую свободную область экрана
-window.addEventListener("click", e => {
-  if (!e.target.closest(".dropdown")) {
-    document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
-  }
-});
-
+  window.addEventListener('resize', () => {
+    let newMinZoom = window.innerWidth < 768 ? -4 : -3;
+    map.setMinZoom(newMinZoom);
+  });
 </script>
 
 </body>
