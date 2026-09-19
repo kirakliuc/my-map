@@ -5,15 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>map system</title>
 
-  <!-- Подключение базовых стилей интерактивной карты Leaflet -->
+  <!-- Стили Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
-    /* Растягиваем холст на весь экран без полос прокрутки */
     html, body { margin:0; padding:0; height:100%; width:100%; background: #1a1a1a; }
     #map { height: 100vh; width: 100vw; background: #1a1a1a; }
 
-    /* Верхнее левое меню переключения карт и дат */
+    /* Верхнее меню выбора карты и даты */
     .top-bar {
       position: fixed; top: 10px; left: 10px;
       display: flex; gap: 8px; z-index: 5000;
@@ -26,7 +25,8 @@
     .menu {
       position: absolute; top: 110%; left: 0; background: white;
       border: 1px solid #ccc; border-radius: 6px; display: none;
-      min-width: 160px; z-index: 6000; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      min-width: 180px; z-index: 6000; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      max-height: 300px; overflow-y: auto;
     }
     .menu button {
       width: 100%; padding: 8px; border: none; background: white;
@@ -35,18 +35,19 @@
     .menu button:hover { background: #eee; }
     .dropdown.open .menu { display: block; }
 
-    /* Переключатель темной и светлой темы оформления */
+    /* Переключатель темы */
     .control-panel { position: fixed; top: 10px; right: 10px; z-index: 5000; }
     .control-btn {
       background: rgba(255,255,255,0.9); border: 1px solid #ccc;
       padding: 6px 10px; border-radius: 6px; cursor: pointer;
     }
 
-    /* Нижняя правая панель тумблеров слоев */
+    /* Панель слоев внизу справа */
     .layers-panel {
       position: fixed; bottom: 10px; right: 10px;
       background: rgba(255,255,255,0.95); padding: 8px;
       border-radius: 6px; z-index: 5000; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      max-height: 400px; overflow-y: auto;
     }
     .layer-btn {
       display: block; width: 100%; margin: 4px 0; padding: 6px 12px;
@@ -61,10 +62,9 @@
 
 <body>
 
-<!-- Контейнер для отображения карты -->
 <div id="map" class="dark-theme"></div>
 
-<!-- Выпадающие списки выбора карты и даты -->
+<!-- Верхнее меню выбора -->
 <div class="top-bar">
   <div class="dropdown" id="mapSelect">
     <button class="drop-btn" id="mapBtn">Карта</button>
@@ -77,67 +77,118 @@
   </div>
 </div>
 
-<!-- Кнопка смены темы -->
+<!-- Переключатель темы -->
 <div class="control-panel">
   <button class="control-btn" id="themeBtn">theme</button>
 </div>
 
-<!-- Панель списка слоев текущей карты -->
+<!-- Панель управления слоями -->
 <div class="layers-panel" id="layers"></div>
 
-<!-- Подключение движка карт Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
 
-// Конфигурация доступных карт, размеров холста, дат и папок слоев
+/* =========================================================================
+   1. КОНФИГУРАЦИЯ КАРТ, ДАТ И СЛОЕВ
+========================================================================= */
 const mapData = {
+  world: {
+    w: 15000, h: 10000,
+    dates: ["2026-06-04", "2026-09-15-12-00"], // Формат даты с часами/минутами: ГГГГ-ММ-ДД-ЧЧ-ММ
+    layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames", "army", "strategy", "layer13", "photo"],
+    // Слои, которые берутся из корня карты БЕЗ даты (например: images/world/googlemaps/tiles/512/{x}/{y}.webp)
+    globalLayers: ["googlemaps", "infrastructure", "layer13", "photo"]
+  },
   kiraine: {
     w: 7500, h: 4700,
     dates: ["2024-05-18"],
-    layers: ["realworld", "fiction", "infra", "cities", "countries"]
+    layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames"],
+    globalLayers: ["googlemaps"]
+  },
+  america: {
+    w: 12120, h: 12399,
+    dates: ["2026-01-01"],
+    layers: ["googlemaps", "background", "citiesnames"],
+    globalLayers: ["googlemaps"]
+  },
+  cuba: {
+    w: 0, h: 0, // Размеры укажете позже
+    dates: ["2026-01-01"],
+    layers: ["googlemaps", "background"],
+    globalLayers: ["googlemaps"]
+  },
+  kharkiv: {
+    w: 0, h: 0, // Размеры укажете позже
+    dates: ["2026-01-01"],
+    layers: ["googlemaps", "background"],
+    globalLayers: ["googlemaps"]
+  },
+  kiyav: {
+    w: 0, h: 0, // Размеры укажете позже
+    dates: ["2026-01-01"],
+    layers: ["googlemaps", "background"],
+    globalLayers: ["googlemaps"]
   },
   altworld: {
     w: 15000, h: 10000,
     dates: ["2026-09-15"],
-    layers: ["realworld", "fiction", "infra", "cities", "countries"]
+    layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames"],
+    globalLayers: ["googlemaps"]
   }
 };
 
-// Глобальные переменные текущего состояния системы
-let currentMap = "kiraine";
+/* =========================================================================
+   2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ИНИЦИАЛИЗАЦИЯ
+========================================================================= */
+let currentMap = "world"; // По умолчанию грузится карта "world"
 let currentDate = "";
 let layerObjects = {};
 
-// Инициализация карты в плоской координатной системе с поддержкой плавного зумирования
+// Безопасное получение размеров карты (с фоллбеком если w/h поставлены в 0)
+function getMapDimensions() {
+  const cfg = mapData[currentMap];
+  const width = (cfg && cfg.w > 0) ? cfg.w : 15000;
+  const height = (cfg && cfg.h > 0) ? cfg.h : 10000;
+  return { w: width, h: height };
+}
+
+// Настройка карты Leaflet
 let map = L.map("map", {
   crs: L.CRS.Simple,
   minZoom: -5,
   maxZoom: 3,
-  zoomSnap: 0, // Плавный зум без фиксированных шагов
+  zoomSnap: 0,
   attributionControl: false
 });
 
-// Кастомный загрузчик тайлов: инвертирует ось Y и строит точные пути к файлам
+/* =========================================================================
+   3. КАСТОМНЫЙ ЗАГРУЗЧИК ТАЙЛОВ С ПОДДЕРЖКОЙ ГЛОБАЛЬНЫХ СЛОЕВ
+========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
     const tile = document.createElement('img');
     tile.alt = '';
 
     const layerName = this.options.layerName;
-    const cfg = mapData[currentMap] || { w: 7500, h: 4700 };
+    const mapConfig = mapData[currentMap];
+    const dims = getMapDimensions();
 
-    // Расчет количества рядов тайлов по высоте для корректного переворота
-    const totalRows = Math.ceil(cfg.h / 512);
-
-    // Инверсия Y: превращаем нижние тайлы в верхние согласно файловой системе
+    const totalRows = Math.ceil(dims.h / 512);
     const correctedY = totalRows - 1 - Math.abs(coords.y);
     const cleanX = Math.abs(coords.x);
 
-    // Формирование итогового пути к `.webp` тайлу
-    tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
+    // ПРОВЕРКА: Если слой входит в список globalLayers, формируем путь БЕЗ даты
+    const isGlobal = mapConfig.globalLayers && mapConfig.globalLayers.includes(layerName);
 
-    // Обработка событий завершения или ошибки загрузки тайла
+    if (isGlobal) {
+      // Путь без даты: images/world/googlemaps/tiles/512/x/y.webp
+      tile.src = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
+    } else {
+      // Путь с датой: images/world/2026-09-15/background/tiles/512/x/y.webp
+      tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
+    }
+
     L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
     L.DomEvent.on(tile, 'error', L.Util.bind(this._tileOnError, this, done, tile));
 
@@ -145,10 +196,9 @@ L.CustomGridLayer = L.TileLayer.extend({
   }
 });
 
-// Создание слоя с принудительной прогрузкой тайлов на любом отдалении
 function createTileLayer(layerName) {
-  const cfg = mapData[currentMap] || { w: 7500, h: 4700 };
-  const bounds = [[0, 0], [cfg.h, cfg.w]];
+  const dims = getMapDimensions();
+  const bounds = [[0, 0], [dims.h, dims.w]];
 
   return new L.CustomGridLayer('', {
     tileSize: 512,
@@ -156,38 +206,36 @@ function createTileLayer(layerName) {
     bounds: bounds,
     layerName: layerName,
 
-    // ЖЕСТКАЯ ПРИВЯЗКА К ТАЙЛАМ 512:
-    minZoom: -5,        // Разрешаем отображение на любом сильном отдалении
-    minNativeZoom: 0,   // Брать тайлы из исходной нарезки...
-    maxNativeZoom: 0,   // ...и масштабировать их под текущий зум экрана
+    minZoom: -5,
+    minNativeZoom: 0,
+    maxNativeZoom: 0,
     
-    keepBuffer: 2,       // Подгружать тайлы за краем экрана для плавного скролла
-    updateWhenIdle: false // Загружать тайлы моментально на лету
+    keepBuffer: 2,
+    updateWhenIdle: false
   });
 }
 
-// Очистка и полная пересборка всех слоев карты
+/* =========================================================================
+   4. ПОСТРОЕНИЕ КАРТЫ И ИНТЕРФЕЙСА
+========================================================================= */
 function buildMap() {
   Object.values(layerObjects).forEach(l => map.removeLayer(l));
   layerObjects = {};
 
-  const cfg = mapData[currentMap] || { w: 7500, h: 4700 };
-  const activeLayers = cfg.layers || [];
-  const bounds = [[0, 0], [cfg.h, cfg.w]];
+  const dims = getMapDimensions();
+  const activeLayers = mapData[currentMap].layers || [];
+  const bounds = [[0, 0], [dims.h, dims.w]];
 
-  // Подключение всех слоев, принадлежащих текущей карте
   activeLayers.forEach(lName => {
     const tileLayer = createTileLayer(lName);
     layerObjects[lName] = tileLayer;
     tileLayer.addTo(map);
   });
 
-  // Автоматический подгон камеры под границы карты при открытии
   map.fitBounds(bounds);
   renderLayersUI();
 }
 
-// Генерация кнопок вкл/выкл слоев на интерфейсе
 function renderLayersUI() {
   const box = document.getElementById("layers");
   box.innerHTML = "";
@@ -218,7 +266,15 @@ function renderLayersUI() {
   });
 }
 
-// Настройка выпадающего списка карт
+// Форматирование даты для выпадающего меню (превращает "2026-09-15-12-00" в "2026-09-15 (12:00)")
+function formatDisplayDate(dateStr) {
+  const parts = dateStr.split('-');
+  if (parts.length === 5) {
+    return `${parts[0]}-${parts[1]}-${parts[2]} (${parts[3]}:${parts[4]})`;
+  }
+  return dateStr;
+}
+
 function setupMenus() {
   const mapMenu = document.getElementById("mapMenu");
   mapMenu.innerHTML = "";
@@ -233,38 +289,37 @@ function setupMenus() {
   selectMap(currentMap);
 }
 
-// Выбор конкретной карты
 function selectMap(mapName) {
   currentMap = mapName;
   document.getElementById("mapBtn").textContent = mapName;
 
-  const dates = mapData[mapName].dates;
+  const dates = mapData[mapName].dates || [];
   const dateMenu = document.getElementById("dateMenu");
   dateMenu.innerHTML = "";
 
   dates.forEach(d => {
     const btn = document.createElement("button");
-    btn.textContent = d;
+    btn.textContent = formatDisplayDate(d);
     btn.onclick = () => selectDate(d);
     dateMenu.appendChild(btn);
   });
 
   if (dates.length > 0) {
+    // Выбираем самую ПОСЛЕДНЮЮ дату из массива этой карты
     selectDate(dates[dates.length - 1]);
   }
 }
 
-// Выбор даты и запуск отрисовки
 function selectDate(dateStr) {
   currentDate = dateStr;
-  document.getElementById("dateBtn").textContent = dateStr;
+  document.getElementById("dateBtn").textContent = formatDisplayDate(dateStr);
   buildMap();
 }
 
-// Первоначальный запуск инициализации
+// Запуск приложения
 setupMenus();
 
-// Обработчики открытия/закрытия выпадающих списков
+/* Взаимодействие с UI */
 const mapBtn = document.getElementById("mapBtn");
 const mapSelect = document.getElementById("mapSelect");
 mapBtn.onclick = () => mapSelect.classList.toggle("open");
@@ -273,14 +328,12 @@ const dateBtn = document.getElementById("dateBtn");
 const dateSelect = document.getElementById("dateSelect");
 dateBtn.onclick = () => dateSelect.classList.toggle("open");
 
-// Обработчик переключения светлой/темной темы
 document.getElementById("themeBtn").onclick = () => {
   const m = document.getElementById("map");
   m.classList.toggle("dark-theme");
   m.classList.toggle("light-theme");
 };
 
-// Закрытие меню при клике в любую внешнюю область
 window.addEventListener("click", e => {
   if (!e.target.closest(".dropdown")) {
     document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("open"));
