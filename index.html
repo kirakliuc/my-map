@@ -138,14 +138,8 @@ const mapConfig = {
 };
 
 let currentMap = "kiraine";
-let currentDate = "2024-05-18";
-let manifestData = {
-  "maps": {
-    "kiraine": {
-      "dates": ["2024-05-18"]
-    }
-  }
-};
+let currentDate = "";
+let manifestData = null;
 let layerObjects = {};
 
 let map = L.map("map", {
@@ -160,12 +154,13 @@ function getBounds() {
   return [[0, 0], [cfg.h, cfg.w]];
 }
 
-// Загрузчик тайлов строго по пути: images/[map]/[date]/[layer]/tiles/512/{x}/{y}.webp
+// Кастомный класс для точной загрузки плоской сетки тайлов {x}/{y}.webp
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
     const tile = document.createElement('img');
     tile.alt = '';
 
+    // Подставляем прямые координаты без переворота Y
     const layerName = this.options.layerName;
     tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${coords.x}/${coords.y}.webp`;
 
@@ -194,6 +189,7 @@ function buildMap(availableLayers) {
   const bounds = getBounds();
   map.setMaxBounds(bounds);
 
+  // Используем ТОЛЬКО те слои, которые реально есть в этой дате
   availableLayers.forEach(lName => {
     const tileLayer = createTileLayer(lName);
     layerObjects[lName] = tileLayer;
@@ -234,7 +230,7 @@ function renderLayersUI() {
   });
 }
 
-/* Безопасное чтение манифеста */
+/* ЧТЕНИЕ MANIFEST.JSON */
 fetch('./manifest.json')
   .then(res => res.json())
   .then(data => {
@@ -242,8 +238,8 @@ fetch('./manifest.json')
     setupMenus();
   })
   .catch(err => {
-    console.warn("Локальный файл открытия (CORS). Используем базовый манифест.");
-    setupMenus();
+    console.error("Файл manifest.json не найден:", err);
+    document.getElementById("mapBtn").textContent = "Ошибка manifest.json";
   });
 
 function setupMenus() {
@@ -271,17 +267,15 @@ function selectMap(mapName) {
   const dateMenu = document.getElementById("dateMenu");
   dateMenu.innerHTML = "";
 
-  const dateList = Array.isArray(dates) ? dates : Object.keys(dates);
-
-  dateList.forEach(d => {
+  dates.forEach(d => {
     const btn = document.createElement("button");
     btn.textContent = d;
     btn.onclick = () => selectDate(d);
     dateMenu.appendChild(btn);
   });
 
-  if (dateList.length > 0) {
-    selectDate(dateList[dateList.length - 1]);
+  if (dates.length > 0) {
+    selectDate(dates[dates.length - 1]);
   }
 }
 
@@ -289,11 +283,21 @@ function selectDate(dateStr) {
   currentDate = dateStr;
   document.getElementById("dateBtn").textContent = dateStr;
 
-  // Базовый список имен слоев, сгенерированных вашей утилитой pypdn
-  // Если у вас слои названы иначе, список подстроится
-  const defaultLayers = ['realworld', 'fiction', 'infra', 'cities', 'countries', 'Layer_0', 'Слой_1', 'Слой_2'];
+  // Безопасно получаем список слоев для этой даты из манифеста
+  const mapData = manifestData.maps[currentMap];
+  let layers = [];
 
-  buildMap(defaultLayers);
+  if (Array.isArray(mapData.dates)) {
+    // Старая структура
+    layers = ['realworld', 'fiction', 'infra', 'cities', 'countries'];
+  } else if (mapData.dates[dateStr] && mapData.dates[dateStr].layers) {
+    // Новая структура с точными слоями
+    layers = mapData.dates[dateStr].layers;
+  } else {
+    layers = ['realworld', 'fiction', 'infra', 'cities', 'countries'];
+  }
+
+  buildMap(layers);
 }
 
 /* UI ВЗАИМОДЕЙСТВИЕ */
