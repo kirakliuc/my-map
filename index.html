@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>map system</title>
 
-  <!-- Подключение стилей карты Leaflet -->
+  <!-- Стили Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
     html, body { margin:0; padding:0; height:100%; width:100%; background: #1a1a1a; }
     #map { height: 100vh; width: 100vw; background: #1a1a1a; }
 
-    /* Верхнее меню выбора карты и даты */
+    /* Верхнее меню */
     .top-bar {
       position: fixed; top: 10px; left: 10px;
       display: flex; gap: 8px; z-index: 5000;
@@ -34,14 +34,14 @@
     .menu button:hover { background: #eee; }
     .dropdown.open .menu { display: block; }
 
-    /* Правая верхняя панель */
+    /* Переключатель темы */
     .control-panel { position: fixed; top: 10px; right: 10px; z-index: 5000; }
     .control-btn {
       background: rgba(255,255,255,0.9); border: 1px solid #ccc;
       padding: 6px 10px; border-radius: 6px; cursor: pointer;
     }
 
-    /* Панель слоев внизу справа */
+    /* Панель слоев внизу */
     .layers-panel {
       position: fixed; bottom: 10px; right: 10px;
       background: rgba(255,255,255,0.95); padding: 8px;
@@ -81,7 +81,7 @@
 
 <script>
 
-/* Конфигурация доступных карт и слоев */
+/* Конфигурация карт и слоев */
 const mapData = {
   kiraine: {
     w: 7500, h: 4700,
@@ -99,27 +99,32 @@ let currentMap = "kiraine";
 let currentDate = "";
 let layerObjects = {};
 
-// Инициализация Leaflet в плоской системе координат
+// Настройка карты: сглаженный зум и экономия памяти
 let map = L.map("map", {
   crs: L.CRS.Simple,
-  minZoom: -3,
+  minZoom: -5,
   maxZoom: 3,
+  zoomSnap: 0, // Плавное масштабирование без скачков
   attributionControl: false
 });
 
-// Кастомный класс слоя с очисткой минуса из Y
+// Кастомный класс для точной загрузки тайлов и переворота Y
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
     const tile = document.createElement('img');
     tile.alt = '';
 
     const layerName = this.options.layerName;
+    const cfg = mapData[currentMap] || { w: 7500, h: 4700 };
 
-    // Убираем минус из координаты Y: Math.abs(coords.y)
+    // Считаем полное количество строк тайлов по высоте
+    const totalRows = Math.ceil(cfg.h / 512);
+
+    // ИСПРАВЛЕНИЕ 1: Инвертируем Y, чтобы верхние тайлы были сверху, а нижние снизу
+    const correctedY = totalRows - 1 - Math.abs(coords.y);
     const cleanX = Math.abs(coords.x);
-    const cleanY = Math.abs(coords.y);
 
-    tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${cleanY}.webp`;
+    tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
 
     L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
     L.DomEvent.on(tile, 'error', L.Util.bind(this._tileOnError, this, done, tile));
@@ -136,7 +141,10 @@ function createTileLayer(layerName) {
     tileSize: 512,
     noWrap: true,
     bounds: bounds,
-    layerName: layerName
+    layerName: layerName,
+    // ИСПРАВЛЕНИЕ 2: Оптимизация памяти (грузить только то, что на экране)
+    keepBuffer: 1,        # Хранить в памяти только 1 запасную строку тайлов за экраном
+    updateWhenIdle: false # Грузить тайлы сразу на лету во время движения
   });
 }
 
@@ -149,12 +157,14 @@ function buildMap() {
   const activeLayers = cfg.layers || [];
   const bounds = [[0, 0], [cfg.h, cfg.w]];
 
+  // Загружаем тайлы
   activeLayers.forEach(lName => {
     const tileLayer = createTileLayer(lName);
     layerObjects[lName] = tileLayer;
     tileLayer.addTo(map);
   });
 
+  // Автоматический фокус на всю карту при входе (без нужды зумить вручную)
   map.fitBounds(bounds);
   renderLayersUI();
 }
