@@ -35,14 +35,7 @@
     .menu button:hover { background: #eee; }
     .dropdown.open .menu { display: block; }
 
-    /* Переключатель темы */
-    .control-panel { position: fixed; top: 10px; right: 10px; z-index: 5000; }
-    .control-btn {
-      background: rgba(255,255,255,0.9); border: 1px solid #ccc;
-      padding: 6px 10px; border-radius: 6px; cursor: pointer;
-    }
-
-    /* Мобильный контейнер и панель слоев внизу справа */
+    /* Контейнер слоев внизу справа */
     .layers-container {
       position: fixed; bottom: 10px; right: 10px;
       display: flex; flex-direction: column; align-items: flex-end;
@@ -64,17 +57,14 @@
       border: 1px solid #ccc; border-radius: 4px; background: white;
       cursor: pointer; text-align: left;
     }
-
-    .dark-theme { background:#1e1e1e; }
-    .light-theme { background:#fff; }
   </style>
 </head>
 
 <body>
 
-<div id="map" class="dark-theme"></div>
+<div id="map"></div>
 
-<!-- Верхнее меню выбора -->
+<!-- Верхняя панель переключения -->
 <div class="top-bar">
   <div class="dropdown" id="mapSelect">
     <button class="drop-btn" id="mapBtn">Карта</button>
@@ -87,12 +77,7 @@
   </div>
 </div>
 
-<!-- Переключатель темы -->
-<div class="control-panel">
-  <button class="control-btn" id="themeBtn">theme</button>
-</div>
-
-<!-- Мобильная панель управления слоями -->
+<!-- Мобильная панель слоев -->
 <div class="layers-container">
   <div class="layers-panel" id="layers"></div>
   <button class="toggle-layers-btn" id="toggleLayersBtn">⚙ Слои</button>
@@ -103,10 +88,8 @@
 <script>
 
 /* =========================================================================
-   1. СТРОГАЯ ИЕРАРХИЯ СЛОЕВ, НАСТРОЙКИ ПРОЗРАЧНОСТИ И КАРТ
+   1. ИЕРАРХИЯ СЛОЕВ И НАСТРОЙКИ КАРТ
 ========================================================================= */
-
-// Строгий порядок наложения и отображения (сверху вниз)
 const LAYER_ORDER = [
   "photo",
   "countriesnames",
@@ -119,30 +102,29 @@ const LAYER_ORDER = [
   "background"
 ];
 
-// Настройки видимости: 0.1 соответствует 90% прозрачности
 const LAYER_OPACITY = {
   'googlemaps': 0.35,
-  'countriesnames': 0.9,
-  'citiesnames': 0.9
+  'countriesnames': 0.1,
+  'citiesnames': 0.1
 };
 
 const mapData = {
   world: {
     w: 15000, h: 10000,
-    dates: ["2026-06-04", "2026-09-14"],
+    dates: ["2026-06-04", "2026-09-15-12-00"],
     layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames", "army", "strategy", "layer13", "photo"],
     globalLayers: ["googlemaps", "infrastructure", "layer13", "photo"]
   },
   kiraine: {
     w: 7500, h: 4700,
     dates: ["2024-05-18"],
-    layers: ["googlemaps", "background"],
+    layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames"],
     globalLayers: ["googlemaps"]
   },
   america: {
     w: 12120, h: 12399,
-    dates: ["2026-01-01", "2024-12-15"],
-    layers: ["googlemaps", "background"],
+    dates: ["2026-01-01"],
+    layers: ["googlemaps", "background", "citiesnames"],
     globalLayers: ["googlemaps"]
   },
   cuba: {
@@ -166,14 +148,11 @@ const mapData = {
   altworld: {
     w: 15000, h: 10000,
     dates: ["2026-09-15"],
-    layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames", "army", "strategy", "layer13", "photo"],
+    layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames"],
     globalLayers: ["googlemaps"]
   }
 };
 
-/* =========================================================================
-   2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ИНИЦИАЛИЗАЦИЯ
-========================================================================= */
 let currentMap = "world";
 let currentDate = "";
 let layerObjects = {};
@@ -185,16 +164,21 @@ function getMapDimensions() {
   return { w: width, h: height };
 }
 
+/* ИНИЦИАЛИЗАЦИЯ КАРТЫ С КНОПКАМИ ЗУМА В ЛЕВОМ НИЖНЕМ УГЛУ */
 let map = L.map("map", {
   crs: L.CRS.Simple,
   minZoom: -5,
   maxZoom: 3,
   zoomSnap: 0,
-  attributionControl: false
+  attributionControl: false,
+  zoomControl: false // Отключаем стандартную позицию
 });
 
+// Добавляем кнопки +/- строго в левый нижний угол
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
 /* =========================================================================
-   3. КАСТОМНЫЙ ЗАГРУЗЧИК С ОПТИМИЗАЦИЕЙ ПАМЯТИ И Z-INDEX
+   2. ЗАГРУЗЧИК СЛОЕВ
 ========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
@@ -229,7 +213,6 @@ function createTileLayer(layerName) {
   const bounds = [[0, 0], [dims.h, dims.w]];
   const opacityVal = (LAYER_OPACITY[layerName] !== undefined) ? LAYER_OPACITY[layerName] : 1.0;
 
-  // Рассчитываем zIndex: чем выше слой в LAYER_ORDER, тем выше его zIndex
   const orderIndex = LAYER_ORDER.indexOf(layerName);
   const zIndexVal = orderIndex !== -1 ? (LAYER_ORDER.length - orderIndex) * 10 : 10;
 
@@ -245,18 +228,13 @@ function createTileLayer(layerName) {
     minNativeZoom: 0,
     maxNativeZoom: 0,
     
-    // ОПТИМИЗАЦИЯ: Не загружать невидимые тайлы и мгновенно выгружать их
     keepBuffer: 0,
     unloadInvisibleTiles: true,
     updateWhenIdle: false
   });
 }
 
-/* =========================================================================
-   4. ПОСТРОЕНИЕ КАРТЫ И РЕНДЕР ИНТЕРФЕЙСА СЛОЕВ
-========================================================================= */
 function buildMap() {
-  // Принудительно отключаем и удаляем слои прошлой карты из памяти
   Object.values(layerObjects).forEach(l => {
     if (map.hasLayer(l)) {
       map.removeLayer(l);
@@ -268,12 +246,10 @@ function buildMap() {
   const activeLayers = mapData[currentMap].layers || [];
   const bounds = [[0, 0], [dims.h, dims.w]];
 
-  // Создаем слои
   activeLayers.forEach(lName => {
     const tileLayer = createTileLayer(lName);
     layerObjects[lName] = tileLayer;
 
-    // По умолчанию включен ТОЛЬКО background
     if (lName === "background") {
       tileLayer.addTo(map);
     }
@@ -287,7 +263,6 @@ function renderLayersUI() {
   const box = document.getElementById("layers");
   box.innerHTML = "";
 
-  // Сортируем отображение кнопок строго по списку LAYER_ORDER
   const sortedNames = Object.keys(layerObjects).sort((a, b) => {
     let idxA = LAYER_ORDER.indexOf(a);
     let idxB = LAYER_ORDER.indexOf(b);
@@ -323,6 +298,25 @@ function renderLayersUI() {
   });
 }
 
+/* =========================================================================
+   3. ОБРАБОТКА ССЫЛОК С ПАРАМЕТРАМИ КАРТЫ И ДАТЫ (URL HASH)
+========================================================================= */
+
+// Обновление ссылки в адресной строке браузера при смене карты/даты
+function updateUrlHash() {
+  window.location.hash = `map=${currentMap}&date=${currentDate}`;
+}
+
+// Чтение параметров карты и даты из URL при входе на сайт
+function parseUrlHash() {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  return {
+    map: params.get('map'),
+    date: params.get('date')
+  };
+}
+
 function formatDisplayDate(dateStr) {
   const parts = dateStr.split('-');
   if (parts.length === 5) {
@@ -342,10 +336,16 @@ function setupMenus() {
     mapMenu.appendChild(btn);
   });
 
-  selectMap(currentMap);
+  // Проверяем, есть ли ссылка с параметрами в адресе
+  const urlParams = parseUrlHash();
+  if (urlParams.map && mapData[urlParams.map]) {
+    selectMap(urlParams.map, urlParams.date);
+  } else {
+    selectMap(currentMap);
+  }
 }
 
-function selectMap(mapName) {
+function selectMap(mapName, preferredDate = null) {
   currentMap = mapName;
   document.getElementById("mapBtn").textContent = mapName;
 
@@ -361,22 +361,25 @@ function selectMap(mapName) {
   });
 
   if (dates.length > 0) {
-    selectDate(dates[dates.length - 1]);
+    // Если в ссылке передана конкретная дата и она существует, выбираем её
+    if (preferredDate && dates.includes(preferredDate)) {
+      selectDate(preferredDate);
+    } else {
+      selectDate(dates[dates.length - 1]);
+    }
   }
 }
 
 function selectDate(dateStr) {
   currentDate = dateStr;
   document.getElementById("dateBtn").textContent = formatDisplayDate(dateStr);
+  updateUrlHash(); // Сохраняем выбор в адресную строку
   buildMap();
 }
 
-// Запуск приложения
 setupMenus();
 
-/* =========================================================================
-   5. ОБРАБОТКА ИНТЕРФЕЙСА И МОБИЛЬНОЙ КНОПКИ
-========================================================================= */
+/* ОБРАБОТКА МЕНЮ И МОБИЛЬНОЙ КНОПКИ */
 const mapBtn = document.getElementById("mapBtn");
 const mapSelect = document.getElementById("mapSelect");
 mapBtn.onclick = () => mapSelect.classList.toggle("open");
@@ -385,13 +388,6 @@ const dateBtn = document.getElementById("dateBtn");
 const dateSelect = document.getElementById("dateSelect");
 dateBtn.onclick = () => dateSelect.classList.toggle("open");
 
-document.getElementById("themeBtn").onclick = () => {
-  const m = document.getElementById("map");
-  m.classList.toggle("dark-theme");
-  m.classList.toggle("light-theme");
-};
-
-// Переключение видимости панели слоев по кнопке
 const toggleLayersBtn = document.getElementById("toggleLayersBtn");
 const layersPanel = document.getElementById("layers");
 toggleLayersBtn.onclick = () => {
