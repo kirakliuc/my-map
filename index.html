@@ -104,27 +104,27 @@ const LAYER_ORDER = [
 
 const LAYER_OPACITY = {
   'googlemaps': 0.35,
-  'countriesnames': 0.1,
-  'citiesnames': 0.1
+  'countriesnames': 0.8,
+  'citiesnames': 0.8
 };
 
 const mapData = {
   world: {
     w: 15000, h: 10000,
-    dates: ["2026-06-04", "2026-09-15-12-00"],
+    dates: ["2026-09-14"],
     layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames", "army", "strategy", "layer13", "photo"],
     globalLayers: ["googlemaps", "infrastructure", "layer13", "photo"]
   },
   kiraine: {
     w: 7500, h: 4700,
     dates: ["2024-05-18"],
-    layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames"],
+    layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   america: {
     w: 12120, h: 12399,
-    dates: ["2026-01-01"],
-    layers: ["googlemaps", "background", "citiesnames"],
+    dates: ["2024-12-15"],
+    layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   cuba: {
@@ -148,8 +148,8 @@ const mapData = {
   altworld: {
     w: 15000, h: 10000,
     dates: ["2026-09-15"],
-    layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames"],
-    globalLayers: ["googlemaps"]
+    layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames", "army", "strategy", "layer13", "photo"],
+    globalLayers: ["googlemaps", "infrastructure", "layer13", "photo"]
   }
 };
 
