@@ -190,12 +190,16 @@ let map = L.map("map", {
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
 /* =========================================================================
-   КАСТОМНЫЙ ЗАГРУЗЧИК С АВТО-ФОЛЛБЕКОМ НА ГЛОБАЛЬНЫЙ СЛОЙ
+   КАСТОМНЫЙ ЗАГРУЗЧИК С ЗАЩИТОЙ ДЛЯ SAFARI (iOS/iPadOS) И АВТО-ФОЛЛБЕКОМ
 ========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
     const tile = document.createElement('img');
     tile.alt = '';
+    
+    // Атрибуты для корректной работы в Safari iOS
+    tile.style.pointerEvents = 'none';
+    tile.style.userSelect = 'none';
 
     const layerName = this.options.layerName;
     const mapConfig = mapData[currentMap];
@@ -207,21 +211,24 @@ L.CustomGridLayer = L.TileLayer.extend({
 
     const isGlobal = mapConfig.globalLayers && mapConfig.globalLayers.includes(layerName);
 
-    // Первичный путь
     const datePath = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
     const globalPath = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
 
+    let failedOnce = false;
+
     if (isGlobal) {
-      // Если слой жестко помечен глобальным, берем сразу из корня
       tile.src = globalPath;
     } else {
-      // Сначала пытаемся подгрузить из папки с ДАТОЙ
       tile.src = datePath;
 
-      // Если файла с датой нет, автоматический фоллбек на глобальный слой без даты
+      // Авто-фоллбек на глобальный слой при отсутствии тайла с датой
       tile.onerror = function() {
-        if (tile.src !== globalPath) {
+        if (!failedOnce && tile.src !== globalPath) {
+          failedOnce = true;
           tile.src = globalPath;
+        } else {
+          // Если и глобального тайла нет — завершаем загрузку (пустая прозрачная заглушка)
+          done(null, tile);
         }
       };
     }
@@ -252,12 +259,13 @@ function createTileLayer(layerName) {
     minZoom: -5,
     minNativeZoom: 0,
     maxNativeZoom: 0,
-    
-    // ПРЕПЯТСТВИЕ ДЛЯ RATE LIMIT (ЗАЩИТА ОТ СПАМА ЗАПРОСОВ):
-    keepBuffer: 0,           // Никаких лишних тайлов за границами видимости
-    unloadInvisibleTiles: true, // Мгновенно отменять загрузку тайлов, ушедших с экрана
-    updateWhenIdle: true,    // ВАЖНО: Качать тайлы ТОЛЬКО когда пользователь закончил двигать/зумить карту!
-    updateWhenZooming: false // Не качать тайлы во время промежуточного зума
+
+    // ЗАЩИТА ОТ RATE LIMIT И ПЕРЕГРУЗКИ ПАМЯТИ IOS/SAFARI:
+    keepBuffer: 0,
+    unloadInvisibleTiles: true,
+    updateWhenIdle: true,       // Подгружать тайлы ТОЛЬКО после завершения сдвига/зума
+    updateWhenZooming: false,   // Не качать тайлы на промежуточных кадрах зума
+    updateInterval: 200         // Буферизация пачки запросов (200 мс)
   });
 }
 
