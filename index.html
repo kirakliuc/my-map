@@ -124,13 +124,13 @@ const LAYER_OPACITY = {
 const mapData = {
   world: {
     w: 15000, h: 10000,
-    dates: ["2026-09-14", "2024-03-26"],
+    dates: ["2026-09-14"],
     layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames", "army", "strategy", "layer13", "photo"],
     globalLayers: ["googlemaps", "infrastructure", "citiesnames", "layer13", "photo"]
   },
   kiraine: {
     w: 7500, h: 4700,
-    dates: ["2024-05-18", "2026-09-29"],
+    dates: ["2024-05-18"],
     layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
@@ -141,21 +141,21 @@ const mapData = {
     globalLayers: ["googlemaps"]
   },
   cuba: {
-    w: 0, h: 0,
+    w: 15000, h: 10000,
     dates: ["2026-01-01"],
     layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   kharkiv: {
-    w: 0, h: 0,
+    w: 15000, h: 10000,
     dates: ["2026-01-01"],
     layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   kiyav: {
-    w: 1300, h: 902,
-    dates: ["2025-07-13"],
-    layers: ["army", "googlemaps", "background"],
+    w: 15000, h: 10000,
+    dates: ["2026-01-01"],
+    layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   altworld: {
@@ -170,39 +170,43 @@ let currentMap = "world";
 let currentDate = "";
 let layerObjects = {};
 
-/* =========================================================================
-   ИСПРАВЛЕННЫЙ ЗАГРУЗЧИК С ЗАЩИТОЙ ОТ ОБРЕЗКИ И СДВИГОВ
-========================================================================= */
 function getMapDimensions() {
   const cfg = mapData[currentMap];
-  // Защита: если размеры не заданы или 0, ставим дефолт
   const width = (cfg && cfg.w > 0) ? cfg.w : 15000;
   const height = (cfg && cfg.h > 0) ? cfg.h : 10000;
   return { w: width, h: height };
 }
 
+/* ИНИЦИАЛИЗАЦИЯ КАРТЫ С КНОПКАМИ ЗУМА В ЛЕВОМ НИЖНЕМ УГЛУ */
+let map = L.map("map", {
+  crs: L.CRS.Simple,
+  minZoom: -5,
+  maxZoom: 3,
+  zoomSnap: 0,
+  attributionControl: false,
+  zoomControl: false
+});
+
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+/* =========================================================================
+   2. ЗАГРУЗЧИК СЛОЕВ
+========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
     const tile = document.createElement('img');
     tile.alt = '';
-    tile.style.pointerEvents = 'none';
 
     const layerName = this.options.layerName;
     const mapConfig = mapData[currentMap];
     const dims = getMapDimensions();
 
-    // Считаем общее количество рядов строго
     const totalRows = Math.ceil(dims.h / 512);
-    const cleanX = Math.abs(coords.x);
     const correctedY = totalRows - 1 - Math.abs(coords.y);
-
-    // Защита от запроса отрицательных и запредельных тайлов
-    if (correctedY < 0 || cleanX < 0) {
-      done(null, tile);
-      return tile;
-    }
+    const cleanX = Math.abs(coords.x);
 
     const isGlobal = mapConfig.globalLayers && mapConfig.globalLayers.includes(layerName);
+
     const datePath = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
     const globalPath = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
 
@@ -232,8 +236,7 @@ L.CustomGridLayer = L.TileLayer.extend({
 
 function createTileLayer(layerName) {
   const dims = getMapDimensions();
-  // Границы задаются от [0, 0] до [H, W]
-  const bounds = L.latLngBounds([0, 0], [dims.h, dims.w]);
+  const bounds = [[0, 0], [dims.h, dims.w]];
   const opacityVal = (LAYER_OPACITY[layerName] !== undefined) ? LAYER_OPACITY[layerName] : 1.0;
 
   const orderIndex = LAYER_ORDER.indexOf(layerName);
@@ -248,10 +251,9 @@ function createTileLayer(layerName) {
     zIndex: zIndexVal,
 
     minZoom: -5,
-    maxZoom: 3,
     minNativeZoom: 0,
     maxNativeZoom: 0,
-
+    
     keepBuffer: 0,
     unloadInvisibleTiles: true,
     updateWhenIdle: true,
@@ -270,7 +272,7 @@ function buildMap() {
 
   const dims = getMapDimensions();
   const activeLayers = mapData[currentMap].layers || [];
-  const bounds = L.latLngBounds([0, 0], [dims.h, dims.w]);
+  const bounds = [[0, 0], [dims.h, dims.w]];
 
   activeLayers.forEach(lName => {
     const tileLayer = createTileLayer(lName);
@@ -281,8 +283,6 @@ function buildMap() {
     }
   });
 
-  // Устанавливаем макс. границы, чтобы камера не улетала в пустоту, но давала рассмотреть края
-  map.setMaxBounds(bounds.pad(0.1)); // pad(0.1) дает 10% запас по краям, чтобы крайние тайлы не обрезалисьviewport
   map.fitBounds(bounds);
   renderLayersUI();
 }
