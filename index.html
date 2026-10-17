@@ -190,7 +190,7 @@ let map = L.map("map", {
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
 /* =========================================================================
-   2. ЗАГРУЗЧИК СЛОЕВ
+   КАСТОМНЫЙ ЗАГРУЗЧИК С АВТО-ФОЛЛБЕКОМ НА ГЛОБАЛЬНЫЙ СЛОЙ
 ========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
@@ -207,10 +207,23 @@ L.CustomGridLayer = L.TileLayer.extend({
 
     const isGlobal = mapConfig.globalLayers && mapConfig.globalLayers.includes(layerName);
 
+    // Первичный путь
+    const datePath = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
+    const globalPath = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
+
     if (isGlobal) {
-      tile.src = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
+      // Если слой жестко помечен глобальным, берем сразу из корня
+      tile.src = globalPath;
     } else {
-      tile.src = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
+      // Сначала пытаемся подгрузить из папки с ДАТОЙ
+      tile.src = datePath;
+
+      // Если файла с датой нет, автоматический фоллбек на глобальный слой без даты
+      tile.onerror = function() {
+        if (tile.src !== globalPath) {
+          tile.src = globalPath;
+        }
+      };
     }
 
     L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
