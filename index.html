@@ -240,9 +240,11 @@ function createTileLayer(layerName) {
     minNativeZoom: 0,
     maxNativeZoom: 0,
     
-    keepBuffer: 0,
-    unloadInvisibleTiles: true,
-    updateWhenIdle: false
+    // ПРЕПЯТСТВИЕ ДЛЯ RATE LIMIT (ЗАЩИТА ОТ СПАМА ЗАПРОСОВ):
+    keepBuffer: 0,           // Никаких лишних тайлов за границами видимости
+    unloadInvisibleTiles: true, // Мгновенно отменять загрузку тайлов, ушедших с экрана
+    updateWhenIdle: true,    // ВАЖНО: Качать тайлы ТОЛЬКО когда пользователь закончил двигать/зумить карту!
+    updateWhenZooming: false // Не качать тайлы во время промежуточного зума
   });
 }
 
