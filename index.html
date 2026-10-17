@@ -242,7 +242,7 @@ L.CustomGridLayer = L.TileLayer.extend({
 
 function createTileLayer(layerName) {
   const dims = getMapDimensions();
-  const bounds = [[0, 0], [dims.h, dims.w]];
+  const bounds = [[0, 0], [cfg.h, cfg.w]];
   const opacityVal = (LAYER_OPACITY[layerName] !== undefined) ? LAYER_OPACITY[layerName] : 1.0;
 
   const orderIndex = LAYER_ORDER.indexOf(layerName);
