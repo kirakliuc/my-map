@@ -222,7 +222,7 @@ L.CustomGridLayer = L.TileLayer.extend({
 
 function createTileLayer(layerName) {
   const dims = getMapDimensions();
-  const bounds = [[0, 0], [cfg.h, cfg.w]];
+  const bounds = [[0, 0], [dims.h, dims.w]];
   const opacityVal = (LAYER_OPACITY[layerName] !== undefined) ? LAYER_OPACITY[layerName] : 1.0;
 
   const orderIndex = LAYER_ORDER.indexOf(layerName);
@@ -240,14 +240,11 @@ function createTileLayer(layerName) {
     minNativeZoom: 0,
     maxNativeZoom: 0,
     
-    // БЕЗОПАСНЫЙ РЕЖИМ ДЛЯ GITHUB PAGES:
-    keepBuffer: 0,              // Не качать тайлы за пределами экрана
-    unloadInvisibleTiles: true,    // Очищать скрытые тайлы
-    updateWhenIdle: true,       // Запрашивать тайлы ТОЛЬКО после остановки сдвига/зума
-    updateWhenZooming: false,   // Игнорировать промежуточные кадры зума
-    
-    // Мягкая задержка перед отправкой пачки запросов (150 мс)
-    updateInterval: 150 
+    // ПРЕПЯТСТВИЕ ДЛЯ RATE LIMIT (ЗАЩИТА ОТ СПАМА ЗАПРОСОВ):
+    keepBuffer: 0,           // Никаких лишних тайлов за границами видимости
+    unloadInvisibleTiles: true, // Мгновенно отменять загрузку тайлов, ушедших с экрана
+    updateWhenIdle: true,    // ВАЖНО: Качать тайлы ТОЛЬКО когда пользователь закончил двигать/зумить карту!
+    updateWhenZooming: false // Не качать тайлы во время промежуточного зума
   });
 }
 
