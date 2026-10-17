@@ -194,55 +194,55 @@ L.control.zoom({ position: 'bottomleft' }).addTo(map);
 ========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
-    const tile = document.createElement('img');
-    tile.alt = '';
-    
-    // Атрибуты для корректной работы в Safari iOS
-    tile.style.pointerEvents = 'none';
-    tile.style.userSelect = 'none';
+  const tile = document.createElement('img');
+  tile.alt = '';
+  tile.style.pointerEvents = 'none';
 
-    const layerName = this.options.layerName;
-    const mapConfig = mapData[currentMap];
-    const dims = getMapDimensions();
+  const layerName = this.options.layerName;
+  const mapConfig = mapData[currentMap];
+  const dims = getMapDimensions();
 
-    const totalRows = Math.ceil(dims.h / 512);
-    const correctedY = totalRows - 1 - Math.abs(coords.y);
-    const cleanX = Math.abs(coords.x);
+  // Считаем ряды строго от высоты этой конкретной карты
+  const totalRows = Math.ceil(dims.h / 512);
+  const cleanX = Math.abs(coords.x);
+  const correctedY = totalRows - 1 - Math.abs(coords.y);
 
-    const isGlobal = mapConfig.globalLayers && mapConfig.globalLayers.includes(layerName);
-
-    const datePath = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
-    const globalPath = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
-
-    let failedOnce = false;
-
-    if (isGlobal) {
-      tile.src = globalPath;
-    } else {
-      tile.src = datePath;
-
-      // Авто-фоллбек на глобальный слой при отсутствии тайла с датой
-      tile.onerror = function() {
-        if (!failedOnce && tile.src !== globalPath) {
-          failedOnce = true;
-          tile.src = globalPath;
-        } else {
-          // Если и глобального тайла нет — завершаем загрузку (пустая прозрачная заглушка)
-          done(null, tile);
-        }
-      };
-    }
-
-    L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
-    L.DomEvent.on(tile, 'error', L.Util.bind(this._tileOnError, this, done, tile));
-
+  // Защита от отрицательных индексов (-1.webp)
+  if (correctedY < 0) {
+    done(null, tile);
     return tile;
   }
+
+  const isGlobal = mapConfig.globalLayers && mapConfig.globalLayers.includes(layerName);
+  const datePath = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
+  const globalPath = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
+
+  let failedOnce = false;
+
+  if (isGlobal) {
+    tile.src = globalPath;
+  } else {
+    tile.src = datePath;
+    tile.onerror = function() {
+      if (!failedOnce && tile.src !== globalPath) {
+        failedOnce = true;
+        tile.src = globalPath;
+      } else {
+        done(null, tile);
+      }
+    };
+  }
+
+  L.DomEvent.on(tile, 'load', L.Util.bind(this._tileOnLoad, this, done, tile));
+  L.DomEvent.on(tile, 'error', L.Util.bind(this._tileOnError, this, done, tile));
+
+  return tile;
+}
 });
 
 function createTileLayer(layerName) {
   const dims = getMapDimensions();
-  const bounds = [[0, 0], [cfg.h, cfg.w]];
+  const bounds = [[0, 0], [dims.h, dims.w]];
   const opacityVal = (LAYER_OPACITY[layerName] !== undefined) ? LAYER_OPACITY[layerName] : 1.0;
 
   const orderIndex = LAYER_ORDER.indexOf(layerName);
