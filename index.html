@@ -5,12 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>map system</title>
 
+  <!-- Стили Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
   <style>
     html, body { margin:0; padding:0; height:100%; width:100%; background: #1a1a1a; }
     #map { height: 100vh; width: 100vw; background: #1a1a1a; }
 
+    /* Верхнее меню выбора карты и даты */
     .top-bar {
       position: fixed; top: 10px; left: 10px;
       display: flex; gap: 8px; z-index: 5000;
@@ -33,6 +35,7 @@
     .menu button:hover { background: #eee; }
     .dropdown.open .menu { display: block; }
 
+    /* Правая верхняя панель (Кнопка поделиться) */
     .control-panel { position: fixed; top: 10px; right: 10px; z-index: 5000; }
     .control-btn {
       background: rgba(255,255,255,0.9); border: 1px solid #ccc;
@@ -40,6 +43,7 @@
       transition: background 0.2s, color 0.2s;
     }
 
+    /* Контейнер слоев внизу справа */
     .layers-container {
       position: fixed; bottom: 10px; right: 10px;
       display: flex; flex-direction: column; align-items: flex-end;
@@ -68,6 +72,7 @@
 
 <div id="map"></div>
 
+<!-- Верхняя панель переключения -->
 <div class="top-bar">
   <div class="dropdown" id="mapSelect">
     <button class="drop-btn" id="mapBtn">Карта</button>
@@ -80,10 +85,12 @@
   </div>
 </div>
 
+<!-- Правая верхняя панель -->
 <div class="control-panel">
   <button class="control-btn" id="shareBtn">Ссылка</button>
 </div>
 
+<!-- Мобильная панель слоев -->
 <div class="layers-container">
   <div class="layers-panel" id="layers"></div>
   <button class="toggle-layers-btn" id="toggleLayersBtn">⚙ Слои</button>
@@ -93,6 +100,9 @@
 
 <script>
 
+/* =========================================================================
+   1. ИЕРАРХИЯ СЛОЕВ И НАСТРОЙКИ КАРТ
+========================================================================= */
 const LAYER_ORDER = [
   "photo",
   "countriesnames",
@@ -167,6 +177,7 @@ function getMapDimensions() {
   return { w: width, h: height };
 }
 
+/* ИНИЦИАЛИЗАЦИЯ КАРТЫ С КНОПКАМИ ЗУМА В ЛЕВОМ НИЖНЕМ УГЛУ */
 let map = L.map("map", {
   crs: L.CRS.Simple,
   minZoom: -5,
@@ -178,7 +189,9 @@ let map = L.map("map", {
 
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-/* СТАБИЛЬНЫЙ ЗАГРУЗЧИК ТАЙЛОВ */
+/* =========================================================================
+   2. ЗАГРУЗЧИК СЛОЕВ
+========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
     const tile = document.createElement('img');
@@ -189,16 +202,11 @@ L.CustomGridLayer = L.TileLayer.extend({
     const dims = getMapDimensions();
 
     const totalRows = Math.ceil(dims.h / 512);
-    const cleanX = Math.abs(coords.x);
     const correctedY = totalRows - 1 - Math.abs(coords.y);
-
-    // Если координаты за пределами карты — не запрашиваем файл вообще
-    if (correctedY < 0 || correctedY >= totalRows) {
-      done(null, tile);
-      return tile;
-    }
+    const cleanX = Math.abs(coords.x);
 
     const isGlobal = mapConfig.globalLayers && mapConfig.globalLayers.includes(layerName);
+
     const datePath = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
     const globalPath = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
 
@@ -207,10 +215,11 @@ L.CustomGridLayer = L.TileLayer.extend({
     } else {
       tile.src = datePath;
 
-      // Однократный фоллбек: предотвращает бесконечный цикл 404
+      // Если файла с датой нет, автоматический фоллбек на глобальный слой без даты
       tile.onerror = function() {
-        tile.onerror = null; // Отключаем обработчик, чтобы исключить зацикливание
-        tile.src = globalPath;
+        if (tile.src !== globalPath) {
+          tile.src = globalPath;
+        }
       };
     }
 
@@ -313,6 +322,10 @@ function renderLayersUI() {
   });
 }
 
+/* =========================================================================
+   3. ОБРАБОТКА ССЫЛОК С ПАРАМЕТРАМИ КАРТЫ И ДАТЫ (URL HASH)
+========================================================================= */
+
 function updateUrlHash() {
   window.location.hash = `map=${currentMap}&date=${currentDate}`;
 }
@@ -386,6 +399,7 @@ function selectDate(dateStr) {
 
 setupMenus();
 
+/* ОБРАБОТКА МЕНЮ И МОБИЛЬНОЙ КНОПКИ */
 const mapBtn = document.getElementById("mapBtn");
 const mapSelect = document.getElementById("mapSelect");
 mapBtn.onclick = () => mapSelect.classList.toggle("open");
@@ -400,6 +414,7 @@ toggleLayersBtn.onclick = () => {
   layersPanel.classList.toggle("collapsed");
 };
 
+/* КОПИРОВАНИЕ ССЫЛКИ В БУФЕР ОБМЕНА */
 document.getElementById("shareBtn").onclick = function() {
   const currentUrl = window.location.href;
   const btn = this;
