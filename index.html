@@ -190,7 +190,7 @@ let map = L.map("map", {
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
 /* =========================================================================
-   2. ЗАГРУЗЧИК СЛОЕВ
+   2. ЗАГРУЗЧИК СЛОЕВ С ЖЕСТКОЙ БЛОКИРОВКОЙ ЗАЦИКЛИВАНИЯ OSERROR
 ========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
@@ -199,27 +199,30 @@ L.CustomGridLayer = L.TileLayer.extend({
 
     const layerName = this.options.layerName;
     const mapConfig = mapData[currentMap];
-    const dims = getMapDimensions();
 
-    const totalRows = Math.ceil(dims.h / 512);
-    const correctedY = totalRows - 1 - Math.abs(coords.y);
-    const cleanX = Math.abs(coords.x);
+    // ЗАЩИТА 1: Если Y или X отрицательные (за пределами холста) — НЕ ДЕЛАЕМ ЗАПРОС К СЕРВЕРУ!
+    if (coords.y < 0 || coords.x < 0) {
+      done(null, tile);
+      return tile;
+    }
+
+    const cleanX = coords.x;
+    const cleanY = coords.y;
 
     const isGlobal = mapConfig.globalLayers && mapConfig.globalLayers.includes(layerName);
 
-    const datePath = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
-    const globalPath = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${correctedY}.webp`;
+    const datePath = `images/${currentMap}/${currentDate}/${layerName}/tiles/512/${cleanX}/${cleanY}.webp`;
+    const globalPath = `images/${currentMap}/${layerName}/tiles/512/${cleanX}/${cleanY}.webp`;
 
     if (isGlobal) {
       tile.src = globalPath;
     } else {
       tile.src = datePath;
 
-      // Если файла с датой нет, автоматический фоллбек на глобальный слой без даты
+      // ЗАЩИТА 2: Отключаем onerror сразу после первого срабатывания
       tile.onerror = function() {
-        if (tile.src !== globalPath) {
-          tile.src = globalPath;
-        }
+        tile.onerror = null; // ЖЁСТКИЙ СБРОС: исключает бесконечный рекурсивный вызов!
+        tile.src = globalPath;
       };
     }
 
