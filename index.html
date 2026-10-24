@@ -190,7 +190,7 @@ let map = L.map("map", {
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
 /* =========================================================================
-   2. ЗАГРУЗЧИК СЛОЕВ С ЖЕСТКОЙ БЛОКИРОВКОЙ ЗАЦИКЛИВАНИЯ OSERROR
+   ИСПРАВЛЕННЫЙ ЗАГРУЗЧИК (ПОЛНОСТЬЮ ВОССТАНАВЛИВАЕТ НИЖНИЕ ТАЙЛЫ 1.webp, 9.webp, 24.webp)
 ========================================================================= */
 L.CustomGridLayer = L.TileLayer.extend({
   createTile: function(coords, done) {
@@ -201,15 +201,15 @@ L.CustomGridLayer = L.TileLayer.extend({
     const mapConfig = mapData[currentMap];
     const dims = getMapDimensions();
 
-    // 1. Считаем сколько ВСЕГО рядов тайлов по высоте
     const totalRows = Math.ceil(dims.h / 512);
+    const totalCols = Math.ceil(dims.w / 512);
 
-    // 2. Переворачиваем Y из Leaflet в Y для папок на диске
-    const cleanX = Math.abs(coords.x);
-    const correctedY = totalRows - 1 - Math.abs(coords.y);
+    const cleanX = coords.x;
+    // Корректный перевод оси Y Leaflet в Y-индекс файлов на диске:
+    const correctedY = (totalRows - 1) - Math.abs(coords.y);
 
-    // 3. БЛОКИРОВКА СПАМА: Если запрашивается тайл ЗА ПРЕДЕЛАМИ карты — не качаем его!
-    if (correctedY < 0 || correctedY >= totalRows || coords.x < 0) {
+    // СТРОГАЯ ПРОВЕРКА ГРАНИЦ: Блокируем ТОЛЬКО то, что реально за пределами сетки тайлов!
+    if (cleanX < 0 || cleanX >= totalCols || correctedY < 0 || correctedY >= totalRows) {
       done(null, tile);
       return tile;
     }
@@ -224,10 +224,9 @@ L.CustomGridLayer = L.TileLayer.extend({
     } else {
       tile.src = datePath;
 
-      // 4. ЗАЩИТА ОТ RATE LIMIT: отключаем onerror сразу после 1-й попытки,
-      // чтобы браузер НЕ зацикливал 404 ошибки по 1000 раз в секунду!
+      // Безопасный фоллбек без зацикливания
       tile.onerror = function() {
-        tile.onerror = null; 
+        tile.onerror = null;
         tile.src = globalPath;
       };
     }
