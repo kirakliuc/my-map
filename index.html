@@ -206,7 +206,7 @@ L.CustomGridLayer = L.TileLayer.extend({
 
     const cleanX = coords.x;
     // Корректный перевод оси Y Leaflet в Y-индекс файлов на диске:
-    // const correctedY = (totalRows - 1) - Math.abs(coords.y);
+    const correctedY = (totalRows - 0) - Math.abs(coords.y);
 
     // СТРОГАЯ ПРОВЕРКА ГРАНИЦ: Блокируем ТОЛЬКО то, что реально за пределами сетки тайлов!
     if (cleanX < 0 || cleanX >= totalCols || correctedY < 0 || correctedY >= totalRows) {
