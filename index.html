@@ -65,6 +65,10 @@
       border: 1px solid #ccc; border-radius: 4px; background: white;
       cursor: pointer; text-align: left;
     }
+    /* Исправление краша карты на iPhone/iPad */
+    .leaflet-container img.leaflet-tile {
+      mix-blend-mode: normal !important;
+    }
   </style>
 </head>
 
