@@ -259,6 +259,7 @@ function createTileLayer(layerName, bounds) {
     cols: Math.ceil(w / TILE),
     opacity: LAYER_OPACITY[layerName] ?? 1,
     zIndex: order !== -1 ? (LAYER_ORDER.length - order) * 10 : 10,
+    minZoom: -20,   // без этого слой по умолчанию не показывается на зуме < 0
     minNativeZoom: 0,
     maxNativeZoom: 0,
     // На телефонах — экономный режим (против вылетов), на компьютере — плавнее
