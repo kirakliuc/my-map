@@ -77,10 +77,6 @@
 
     /* Исправление краша карты на iPhone/iPad */
     .leaflet-container img.leaflet-tile { mix-blend-mode: normal !important; }
-    /* Исправление краша карты на iPhone/iPad */
-    .leaflet-container img.leaflet-tile {
-      mix-blend-mode: normal !important;
-    }
   </style>
 </head>
 
@@ -118,6 +114,7 @@
 const TILE = 512;
 const DEFAULT_MAP = "world";
 const DEFAULT_LAYERS = ["background"];   // что включено при первом открытии
+const DEFAULT_ZOOM_SWITCH = -1.5;        // <--- ПОРОГ ЗУМА: ниже этого значения грузятся 2048, выше/равно — 512
 const IS_MOBILE = L.Browser.mobile;
 
 // Порядок слоёв: первый — самый верхний
@@ -135,46 +132,55 @@ const LAYER_LABELS = {
   googlemaps: "Google Maps", infrastructure: "Инфраструктура", background: "Фон"
 };
 
-/* Для каждой карты можно добавить title (название в меню) и maxZoom (по умолчанию 3) */
+/* Для каждой карты можно задать:
+   - has2048: false (если карта маленькая и у неё только папка 512)
+   - zoomSwitch: -1.5 (индивидуальный порог переключения 2048 <-> 512, если не указан — берётся DEFAULT_ZOOM_SWITCH) */
 const mapData = {
   world: {
     w: 15000, h: 10000,
+    zoomSwitch: -1.5,
     dates: ["2026-09-14", "2024-03-26"],
     layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames", "army", "strategy", "layer13", "photo"],
     globalLayers: ["googlemaps", "infrastructure", "citiesnames", "layer13", "photo"]
   },
   kiraine: {
     w: 7500, h: 4700,
+    zoomSwitch: -1.5,
     dates: ["2024-05-18", "2026-09-29"],
     layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   america: {
     w: 12120, h: 12399,
+    zoomSwitch: -1.5,
     dates: ["2024-12-15"],
     layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   cuba: {
     w: 15000, h: 10000,
+    zoomSwitch: -1.5,
     dates: ["2026-01-01"],
     layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   kharkiv: {
     w: 15000, h: 10000,
+    zoomSwitch: -1.5,
     dates: ["2026-01-01"],
     layers: ["googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   kiyav: {
     w: 1300, h: 902,
+    has2048: false, // только тайлы 512
     dates: ["2025-07-13"],
     layers: ["army", "googlemaps", "background"],
     globalLayers: ["googlemaps"]
   },
   altworld: {
     w: 15000, h: 10000,
+    zoomSwitch: -1.5,
     dates: ["2026-09-15"],
     layers: ["googlemaps", "background", "infrastructure", "citiesnames", "countriesnames", "army", "strategy", "layer13", "photo"],
     globalLayers: ["googlemaps", "infrastructure", "citiesnames", "layer13", "photo"]
@@ -187,7 +193,7 @@ const mapData = {
 let currentMap = null;
 let currentDate = "";
 let currentBounds = null;
-let layerObjects = {};
+let layerObjects = {}; // { layerName: { l512: GridLayer, l2048: GridLayer | null } }
 let enabledLayers = new Set(DEFAULT_LAYERS);  // запоминается между картами и датами
 let pendingView = null;                       // вид из ссылки: [x, y, zoom]
 
@@ -208,25 +214,25 @@ const map = L.map("map", {
 });
 L.control.zoom({ position: "bottomleft" }).addTo(map);
 
-/* Загрузчик тайлов. Параметры карты и даты фиксируются при создании слоя,
-   поэтому быстрое переключение карт не путает пути. */
+/* Загрузчик тайлов. Параметры карты, даты и размера области (512 или 2048)
+   фиксируются при создании слоя. */
 const GridLayer = L.TileLayer.extend({
   createTile(coords, done) {
     const tile = document.createElement("img");
     tile.alt = "";
     tile.decoding = "async";
 
-    const { mapName, date, layerName, isGlobal, rows, cols } = this.options;
+    const { mapName, date, layerName, isGlobal, folderSize, rows, cols } = this.options;
     const x = coords.x;
-    const y = coords.y + rows;   // ось Y Leaflet (вверх) → номер строки файла (сверху вниз)
+    const y = coords.y + rows;   // ось Y Leaflet (вверх) -> номер строки файла (сверху вниз)
 
     if (x < 0 || x >= cols || y < 0 || y >= rows) {
       setTimeout(() => done(null, tile));
       return tile;
     }
 
-    const globalPath = `images/${mapName}/${layerName}/tiles/${TILE}/${x}/${y}.webp`;
-    const datePath = `images/${mapName}/${date}/${layerName}/tiles/${TILE}/${x}/${y}.webp`;
+    const globalPath = `images/${mapName}/${layerName}/${folderSize}/${x}/${y}.webp`;
+    const datePath = `images/${mapName}/${date}/${layerName}/${folderSize}/${x}/${y}.webp`;
     const sources = isGlobal ? [globalPath] : [datePath, globalPath];
     let i = 0;
 
@@ -242,10 +248,12 @@ const GridLayer = L.TileLayer.extend({
   }
 });
 
-function createTileLayer(layerName, bounds) {
+function createSubLayer(layerName, bounds, folderSize) {
   const cfg = mapData[currentMap];
   const { w, h } = getDims();
   const order = LAYER_ORDER.indexOf(layerName);
+  // 512px картинка, покрывающая 2048x2048 исходника, имеет нативный зум -2 (2048 / 512 = 4 = 2^2)
+  const nativeZoom = folderSize === 2048 ? -2 : 0;
 
   return new GridLayer("", {
     tileSize: TILE,
@@ -254,18 +262,49 @@ function createTileLayer(layerName, bounds) {
     mapName: currentMap,
     date: currentDate,
     layerName,
+    folderSize,
     isGlobal: !!(cfg.globalLayers && cfg.globalLayers.includes(layerName)),
-    rows: Math.ceil(h / TILE),
-    cols: Math.ceil(w / TILE),
+    rows: Math.ceil(h / folderSize),
+    cols: Math.ceil(w / folderSize),
     opacity: LAYER_OPACITY[layerName] ?? 1,
     zIndex: order !== -1 ? (LAYER_ORDER.length - order) * 10 : 10,
-    minZoom: -20,   // без этого слой по умолчанию не показывается на зуме < 0
-    minNativeZoom: 0,
-    maxNativeZoom: 0,
-    // На телефонах — экономный режим (против вылетов), на компьютере — плавнее
+    minZoom: -20,
+    minNativeZoom: nativeZoom,
+    maxNativeZoom: nativeZoom,
     keepBuffer: IS_MOBILE ? 0 : 2,
     updateWhenIdle: IS_MOBILE,
     updateWhenZooming: false
+  });
+}
+
+function createLayerPair(layerName, bounds) {
+  const cfg = mapData[currentMap];
+  const use2048 = cfg.has2048 !== false;
+  return {
+    l512: createSubLayer(layerName, bounds, 512),
+    l2048: use2048 ? createSubLayer(layerName, bounds, 2048) : null
+  };
+}
+
+/* Переключает активные слои между 2048 и 512 в зависимости от текущего зума */
+function syncZoomLayers() {
+  if (!currentMap) return;
+  const cfg = mapData[currentMap];
+  const zoomSwitch = cfg.zoomSwitch ?? DEFAULT_ZOOM_SWITCH;
+  const isFarZoom = (cfg.has2048 !== false) && (map.getZoom() < zoomSwitch);
+
+  Object.entries(layerObjects).forEach(([name, pair]) => {
+    const isEnabled = enabledLayers.has(name);
+    const target = (isFarZoom && pair.l2048) ? pair.l2048 : pair.l512;
+    const other = target === pair.l512 ? pair.l2048 : pair.l512;
+
+    if (other && map.hasLayer(other)) map.removeLayer(other);
+
+    if (isEnabled) {
+      if (!map.hasLayer(target)) map.addLayer(target);
+    } else {
+      if (map.hasLayer(target)) map.removeLayer(target);
+    }
   });
 }
 
@@ -278,7 +317,10 @@ function updateMinZoom() {
 function buildMap(keepView) {
   const prev = keepView ? { c: map.getCenter(), z: map.getZoom() } : null;
 
-  Object.values(layerObjects).forEach(l => map.removeLayer(l));
+  Object.values(layerObjects).forEach(pair => {
+    if (pair.l512 && map.hasLayer(pair.l512)) map.removeLayer(pair.l512);
+    if (pair.l2048 && map.hasLayer(pair.l2048)) map.removeLayer(pair.l2048);
+  });
   layerObjects = {};
 
   const cfg = mapData[currentMap];
@@ -298,15 +340,18 @@ function buildMap(keepView) {
   }
   pendingView = null;
 
-  cfg.layers.forEach(name => { layerObjects[name] = createTileLayer(name, currentBounds); });
+  cfg.layers.forEach(name => { layerObjects[name] = createLayerPair(name, currentBounds); });
 
-  let active = cfg.layers.filter(n => enabledLayers.has(n));
-  if (!active.length && enabledLayers.size && cfg.layers.includes("background")) active = ["background"];
-  active.forEach(n => layerObjects[n].addTo(map));
+  const active = cfg.layers.filter(n => enabledLayers.has(n));
+  if (!active.length && enabledLayers.size && cfg.layers.includes("background")) {
+    enabledLayers.add("background");
+  }
 
+  syncZoomLayers();
   renderLayersUI();
 }
 
+map.on("zoomend", syncZoomLayers);
 map.on("resize", updateMinZoom);
 
 /* =========================================================================
@@ -318,16 +363,15 @@ function renderLayersUI() {
   const rank = n => { const i = LAYER_ORDER.indexOf(n); return i === -1 ? 99 : i; };
 
   Object.keys(layerObjects).sort((a, b) => rank(a) - rank(b)).forEach(name => {
-    const layer = layerObjects[name];
     const btn = document.createElement("button");
-    btn.className = "layer-btn" + (map.hasLayer(layer) ? " on" : "");
+    btn.className = "layer-btn" + (enabledLayers.has(name) ? " on" : "");
     btn.textContent = layerTitle(name);
 
     btn.onclick = () => {
-      const on = !map.hasLayer(layer);
-      on ? map.addLayer(layer) : map.removeLayer(layer);
+      const on = !enabledLayers.has(name);
       on ? enabledLayers.add(name) : enabledLayers.delete(name);
       btn.classList.toggle("on", on);
+      syncZoomLayers();
       writeHash("replace");
     };
     box.appendChild(btn);
@@ -354,7 +398,7 @@ function writeHash(mode = "replace") {
   if (!currentMap) return;
   const { h } = getDims();
   const c = map.getCenter();
-  const on = Object.keys(layerObjects).filter(n => map.hasLayer(layerObjects[n]));
+  const on = Object.keys(layerObjects).filter(n => enabledLayers.has(n));
   const hash = `#map=${currentMap}&date=${currentDate}&layers=${on.join(",")}` +
     `&view=${Math.round(c.lng)},${Math.round(h - c.lat)},${map.getZoom().toFixed(2)}`;
   try {
